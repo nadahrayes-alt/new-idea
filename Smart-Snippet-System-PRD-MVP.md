@@ -2306,305 +2306,1307 @@ See section 15 for complete spec. Additional examples:
 
 ---
 
-## 27. Detailed Specs — MVP Features 5-14 + Phase 2 Roadmap
+## 27. Detailed Specifications — MVP Features 5-14 + Phase 2 Roadmap
 
-> **⚠️ SCOPE CHANGE NOTICE:**
-> Per founder decision, 10 modules originally planned as Phase 1/2 have been **promoted to MVP scope** (Features 5-14). This section contains specs for:
-> - **MVP Features 5-14** (10 modules now in MVP): 40, 38, 39, 44, 46, 49, 50, 51, 54, 55
-> - **Phase 2 Roadmap (10 modules remaining)**: 37, 41, 42, 43, 45, 47, 48, 52, 53, 56
-
-Specs are condensed (Description + Top FRs + Salla Integration + Dependencies + Effort). Full UX/edge case treatment for MVP features must be added during their development sprints.
+> **SCOPE NOTICE:**
+> This section provides **full feature-level specifications** for MVP Features 5-14 (10 modules promoted from Phase 1/2 to MVP per founder decision). Specs match the depth of Features 1-4 (Sections 7-10): description, user flow, functional requirements, UX requirements, configuration, data schema, edge cases, mobile, accessibility, and Salla integration.
+>
+> Section 27.11 contains condensed roadmap specs for the **10 remaining Phase 2 modules** (37, 41, 42, 43, 45, 47, 48, 52, 53, 56).
 
 ---
 
-### 27.1 Module 40 — PDPL Consent Management Center (🟢 MVP — Legal Requirement)
+### 27.1 Feature 5 — PDPL Consent Management Center (Module 40)
 
-**Description:** Customer-facing self-service portal for managing data, signals, and consent. **Required for PDPL compliance** (already referenced as cross-cutting requirement in Section 11.2; this section formalizes it as a specific feature).
+#### Description
+A customer-facing self-service portal accessed via tokenized URL, allowing data subjects to view all their stored signals, cancel interest signals individually or in bulk, withdraw consent (stopping future communications), and export their data in CSV or JSON format. This module is **required by Saudi PDPL** (effective Sept 2023, mandatory since Sept 2024) and protects against SDAIA fines (48 violation decisions issued since enforcement began).
 
-**Functional Requirements:**
-- FR-40.1: Accessible via `/v1/public/consent/manage?token=<jwt>`. Token has 30-day expiry, regenerable.
-- FR-40.2: Display all interest signals + submissions associated with customer's phone hash.
-- FR-40.3: One-click cancel for individual signals (sets `status='cancelled'`).
-- FR-40.4: Bulk delete with confirmation prompt (cascade delete + audit log).
-- FR-40.5: Consent withdrawal (stops future communications, retains audit record).
-- FR-40.6: Data export (CSV/JSON download).
-- FR-40.7: Log all actions to `consent_records` table with timestamp, IP, action type.
-- FR-40.8: Email confirmation after each major action (delete, withdraw).
-- FR-40.9: Arabic + English (RTL support).
+The portal is accessed via a signed JWT token embedded in every customer-facing email/WhatsApp communication. No login is required — the token IS the proof of identity.
 
-**Salla Integration:** None (self-hosted URL).
-**Dependencies:** Database schema (`interest_signals`, `consent_records` tables) — already in MVP.
-**Effort:** Medium (3-5 days).
-**Open Questions:** Should we require phone OTP for full data deletion to prevent token-leak attacks?
+#### User Flow
+
+```
+[Customer receives WhatsApp/Email]
+     ↓
+[Clicks "إدارة بياناتي" / "Manage my data" link]
+     ↓
+[Token-based URL opens consent portal]
+     ↓
+[Portal displays:
+  - All interest signals (active + triggered)
+  - All hesitation submissions (if PII attached)
+  - Consent timestamp + version
+]
+     ↓
+[Customer can:
+  - Cancel individual signal
+  - Bulk delete all data
+  - Withdraw consent
+  - Export data (CSV/JSON)
+]
+     ↓
+[Confirmation email + audit log entry]
+```
+
+#### Functional Requirements
+
+- **FR-40.1** URL pattern: `/v1/public/consent/manage?token=<jwt>`. JWT contains: customer_phone_hash, merchant_id, issued_at, expires_at (30 days from issue).
+- **FR-40.2** Token signed with RS256 using rotated key (90-day rotation). Verify signature server-side on every request.
+- **FR-40.3** Display all interest signals where status IN ('active', 'triggered', 'expired') sorted by created_at DESC.
+- **FR-40.4** Display all hesitation submissions where customer_phone matches (only if PII was attached).
+- **FR-40.5** "Cancel signal" action updates status='cancelled', cancelled_at=NOW(). Removes from notification queue.
+- **FR-40.6** "Delete all my data" prompts confirmation modal. Then cascade deletes (audit log retained for legal).
+- **FR-40.7** "Withdraw consent" updates consent_records.withdrawn_at=NOW(), stops all future communications.
+- **FR-40.8** "Export data" generates CSV/JSON with: signal_id, product_name, interest_type, target_value, created_at, status, notification_history.
+- **FR-40.9** All actions logged to `consent_actions` table with: action_type, ip, user_agent, performed_at.
+- **FR-40.10** Email confirmation sent after each major action (delete, withdraw) — uses merchant's brand template.
+- **FR-40.11** Page available in Arabic + English with auto-detect from token claim or browser locale.
+- **FR-40.12** Rate limit: 10 actions/min per token (prevent abuse if token leaked).
+
+#### UX Requirements
+
+**Visual Design:**
+- Clean, trust-conveying (NOT marketing-styled)
+- Calming colors: white background, dark text, blue accent
+- Clear hierarchy: identity → data list → action buttons
+- "Last updated" timestamp visible at top
+
+**Page Structure:**
+1. Header: "إدارة بياناتي" + masked phone (last 4 visible)
+2. Active signals (cards with cancel button)
+3. Triggered/expired signals (collapsed)
+4. Bulk actions (Export, Delete All, Withdraw Consent)
+5. PDPL compliance notice + support contact
+
+**Animation:**
+- Action feedback: subtle slide + check mark
+- Loading states for async operations
+- Toast confirmations (3s auto-dismiss)
+
+**Responsive:** Mobile-first (most access from email links on phone)
+
+#### Configuration
+
+```typescript
+interface ConsentCenterConfig {
+  tokenExpiryDays: number;         // default 30
+  tokenRotationDays: number;       // signing key rotation, default 90
+  rateLimitPerMin: number;         // default 10
+  emailTemplateAr: string;         // confirmation template
+  emailTemplateEn: string;
+  brandPrimaryColor: string;       // from merchant settings
+  brandLogoUrl: string;
+  privacyPolicyUrl: string;
+}
+```
+
+#### Data Captured
+
+```typescript
+interface ConsentAction {
+  id: string;                      // UUID
+  merchant_id: string;
+  customer_phone_hash: string;
+  action_type: 'page_view' | 'cancel_signal' | 'bulk_delete' | 'withdraw_consent' | 'export_data';
+  signal_ids?: string[];           // if cancel/bulk_delete
+  export_format?: 'csv' | 'json';
+  ip: string;
+  user_agent: string;
+  locale: 'ar' | 'en';
+  performed_at: timestamp;
+}
+```
+
+#### Edge Cases
+
+| Edge Case | Behavior |
+|---|---|
+| Token expired | Show regeneration page: "Enter your phone to receive new link" |
+| Token signature invalid | 401 + log security event |
+| Customer has 0 signals | Show empty state: "ما عندك بيانات مخزنة معنا" |
+| Bulk delete on 1000+ signals | Confirm + batch process (100/batch) |
+| Customer already withdrew consent | Show banner with re-enroll option |
+| Export request size > 10MB | Send via email instead of direct download |
+| Token leaked / suspicious activity | Rate limit + security audit log |
+| Merchant uninstalled app | Show "Merchant no longer active" + allow deletion |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Bottom sheet for confirmation modals, 48px tap targets, single-column, sticky actions
+- **A11y:** WCAG AA, screen reader announces results via `aria-live`, focus trap in modals
+- **Salla Integration:** No direct integration (self-hosted URL). Link must be in all email/WhatsApp templates.
+
+#### Effort
+Medium: **3-5 dev days** (1 backend + 1 frontend)
 
 ---
 
-### 27.2 Phase 1 Modules (Months 4-9)
+### 27.2 Feature 6 — Empty Search Capture (Module 38)
 
-All Phase 1 modules build directly on MVP data infrastructure. Technically verified, low Salla native overlap.
+#### Description
+Captures customer search queries that returned no results, converting "invisible inventory misses" into a structured demand signal. When a visitor searches for a product the store doesn't carry, instead of letting them leave silently, we capture the searched term + optional contact info, and surface aggregated insights in the merchant dashboard. This turns search failures into reorder/expansion opportunities.
 
-#### Module 38 — Empty Search Capture (🟡 Phase 1)
-**Description:** Captures customer search queries that returned no results. Direct inventory demand signal.
-**Key FRs:**
-- FR-38.1: Detect empty search state via `.s-search-no-results` CSS class or DOM observation.
-- FR-38.2: Inject capture form: pre-filled query + optional phone + PDPL consent.
-- FR-38.3: Store in `missed_searches` table with frequency aggregation.
-- FR-38.4: Dashboard widget: "Top missed searches" sorted by count.
+#### User Flow
 
-**Salla Integration:** Twilight `<salla-search>` component customization *(Confirmed)*.
-**Dependencies:** PDPL consent layer (MVP).
-**Effort:** Small-Medium (2-4 days).
+```
+[Customer searches in Salla store]
+     ↓
+[Search returns 0 results]
+     ↓
+[Page detects empty state via .s-search-no-results class]
+     ↓
+[Smart Snippet capture form injected automatically]
+     ↓
+[Form pre-fills searched query]
+     ↓
+[Customer adds phone (optional) + PDPL consent]
+     ↓
+[Submit → "نخبرك إذا وفرناه"]
+     ↓
+[Aggregated in missed_searches table]
+```
 
-#### Module 39 — First-Time vs Returning Recognition (🟡 Phase 1)
-**Description:** Different greeting/widget for new vs returning visitors, with intent pre-tagging.
-**Key FRs:**
-- FR-39.1: Detect visitor state via cookie + Salla customer login state.
-- FR-39.2: First-time: show 3-option intent selector (gift / personal / browse).
-- FR-39.3: Returning: show last-viewed product + recently viewed strip.
-- FR-39.4: Store intent tag in `visitor_intents` table linked to session.
+#### Functional Requirements
 
-**Salla Integration:** Twilight SDK for customer state *(Confirmed)*.
-**Dependencies:** None (independent feature).
-**Effort:** Medium (4-5 days).
+- **FR-38.1** Detect empty search state via DOM observation: presence of `.s-search-no-results` class OR text content matching "لا توجد نتائج" / "No results".
+- **FR-38.2** Inject capture form within 100ms of empty state detection.
+- **FR-38.3** Auto-populate search query in form (read-only display + hidden field).
+- **FR-38.4** Phone input optional (PDPL consent only required if phone provided).
+- **FR-38.5** Store in `missed_searches` table with: merchant_id, query, customer_phone_hash (if provided), session_id, page_url, search_timestamp.
+- **FR-38.6** Aggregate identical queries (case-insensitive, normalized whitespace) and increment frequency counter.
+- **FR-38.7** Dashboard widget: "Top missed searches" sorted by frequency, time-filterable (7d/30d/all).
+- **FR-38.8** Doctor rule: If query frequency > 10 in 30 days → suggest "Consider adding this product/category".
+- **FR-38.9** Optional: notify customers if matching product is added later (consent-based).
+- **FR-38.10** Anonymous mode: capture query even without phone (high-volume signal).
 
-#### Module 46 — Vertical Discovery Quiz (🟡 Phase 1)
-**Description:** Short quiz building customer preference profile (skin type, style, scent family).
-**Key FRs:**
-- FR-46.1: Configurable quiz templates per vertical (beauty, fashion, perfumes).
-- FR-46.2: 3-5 question flow, < 60 seconds completion.
-- FR-46.3: Generate `customer_profile` JSON stored in `customer_profiles` table.
-- FR-46.4: Apply profile to product filtering + recommendations.
+#### UX Requirements
 
-**Salla Integration:** Products API for filtering.
-**Dependencies:** Module 39 (First-Time recognition) for trigger.
+**Form Style:**
+- Minimal, non-intrusive
+- Appears below "No results" message with smooth slide-in
+- "نريد توفير ما تبحث عنه!" headline
+- Single-line phone input + PDPL checkbox + Submit
+
+**Visual Design:**
+- Subtle background color (light blue/gray)
+- Same border-radius as Salla theme
+- Friendly emoji 📩 or 🔍
+
+**Empty State Replacement:**
+- Original "No results" message preserved
+- Form appears below as enhancement
+
+#### Configuration
+
+```typescript
+interface EmptySearchCaptureConfig {
+  enabled: boolean;
+  detectionSelectors: string[];           // CSS selectors for empty state
+  detectionTextPatterns: string[];        // Text patterns to match
+  capturePhone: boolean;                  // default true
+  capturePhoneRequired: boolean;          // default false
+  headline_ar: string;
+  headline_en: string;
+  ctaLabel_ar: string;
+  ctaLabel_en: string;
+  notifyOnMatch: boolean;                 // notify customer if added later
+}
+```
+
+#### Data Captured
+
+```typescript
+interface MissedSearch {
+  id: string;
+  merchant_id: string;
+  query: string;                          // raw query
+  normalized_query: string;               // lowercase, trimmed, deduplicated
+  customer_phone_hash?: string;
+  customer_email?: string;
+  consent_given_at?: timestamp;
+  session_id: string;
+  page_url: string;
+  search_timestamp: timestamp;
+  device_type: 'desktop' | 'mobile' | 'tablet';
+  notified_at?: timestamp;                // when product was added
+  created_at: timestamp;
+}
+```
+
+#### Edge Cases
+
+| Edge Case | Behavior |
+|---|---|
+| Empty query (just whitespace) | Don't capture |
+| Search by SKU or product code | Capture normally (signal still useful) |
+| Customer submits same search twice in session | Update timestamp, don't duplicate |
+| Salla theme uses different no-results class | Configurable detection selectors |
+| Search returns 1 result but customer leaves | Don't trigger (only on 0 results) |
+| Malicious queries (SQL injection attempt) | Sanitize, store, flag for review |
+| 1000+ identical queries in 1 day | Throttle aggregation, still log all |
+| Customer doesn't submit (leaves page) | Capture query anonymously (no phone) |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Stack form vertically, large input field, sticky submit button
+- **A11y:** Form fields labeled, error messages via `aria-live`, keyboard navigable
+- **Salla Integration:** Twilight `<salla-search>` component (Confirmed via docs.salla.dev/422730m0). Uses `.s-search-no-results` CSS hook for detection.
+
+#### Effort
+Small-Medium: **2-4 dev days** (1 frontend, mostly DOM observation + form)
+
+---
+
+### 27.3 Feature 7 — Influencer Code Capture & Attribution (Module 54)
+
+#### Description
+Captures customer traffic from specific influencers (via UTM params or special URL slugs), displays personalized landing experience, auto-applies the influencer's coupon code at checkout, and tracks per-influencer revenue/AOV/conversion/CAC. Solves the critical problem that merchants spending on influencer marketing have no idea which influencer drives real revenue.
+
+#### User Flow
+
+```
+[Influencer posts: "Use code SARA20 — store.sa/?ref=sara_kn"]
+     ↓
+[Customer clicks → arrives with UTM params or ?ref= slug]
+     ↓
+[Smart Snippet parses URL, identifies influencer]
+     ↓
+[Personalized banner shown: "👋 شكرًا لزيارتك من سارة!"]
+     ↓
+[Customer browses, adds to cart]
+     ↓
+[At checkout: SARA20 coupon auto-applied]
+     ↓
+[Order completes → attribution recorded]
+     ↓
+[Dashboard shows: Sara generated X orders, Y revenue, Z% CVR]
+```
+
+#### Functional Requirements
+
+- **FR-54.1** Parse URL on every page load for: `utm_source`, `utm_medium`, `utm_campaign`, `?ref=`, `?influencer=`.
+- **FR-54.2** Match against merchant's `influencers` config table (slug, coupon_code, display_name, profile_pic_url).
+- **FR-54.3** Store influencer attribution in cookie (30-day window) and session.
+- **FR-54.4** Display personalized landing banner with influencer name + photo + welcome message.
+- **FR-54.5** Auto-apply influencer's coupon at checkout via Salla Coupons API.
+- **FR-54.6** Track every order from influencer-attributed sessions in `influencer_orders` table.
+- **FR-54.7** Dashboard: per-influencer table showing orders count, revenue, AOV, conversion rate (if traffic data available), CAC (if merchant tracks).
+- **FR-54.8** Influencer management UI in merchant dashboard: add/edit/disable influencers, generate URLs.
+- **FR-54.9** Optional: pre-applied coupon stays even if customer clears cart (retains attribution for 30 days).
+- **FR-54.10** Multi-influencer support: if customer visits via different influencer, latest attribution wins (configurable: first-touch vs last-touch).
+
+#### UX Requirements
+
+**Landing Banner:**
+- Sticky top banner (dismissible)
+- Influencer photo + name + welcome message
+- "Code automatically applied at checkout" reassurance
+- Branded with merchant theme
+
+**Checkout Display:**
+- Coupon line item shows: "Discount (Influencer: Sara) -20%"
+- Builds trust + transparency
+
+**Merchant Dashboard:**
+- Influencer leaderboard sorted by revenue
+- Drill-down per influencer: orders, top products purchased
+- Export CSV for finance/accounting
+
+#### Configuration
+
+```typescript
+interface InfluencerConfig {
+  id: string;
+  merchant_id: string;
+  slug: string;                            // URL identifier (e.g., "sara_kn")
+  display_name: string;
+  profile_pic_url?: string;
+  coupon_code: string;                     // matches Salla coupon
+  commission_percent?: number;             // for tracking (informational)
+  is_active: boolean;
+  attribution_window_days: number;         // default 30
+  attribution_mode: 'first_touch' | 'last_touch';
+  welcome_message_ar: string;
+  welcome_message_en: string;
+}
+```
+
+#### Data Captured
+
+```typescript
+interface InfluencerOrder {
+  id: string;
+  merchant_id: string;
+  influencer_id: string;
+  salla_order_id: string;
+  order_total: number;
+  order_subtotal: number;
+  coupon_discount: number;
+  attribution_source: 'utm' | 'ref_slug' | 'direct_code';
+  first_touch_at: timestamp;
+  order_placed_at: timestamp;
+  customer_id?: string;
+  utm_params?: { source: string; medium: string; campaign: string };
+}
+```
+
+#### Edge Cases
+
+| Edge Case | Behavior |
+|---|---|
+| Customer visits via 2 influencers in same session | Apply attribution_mode rule |
+| Influencer coupon already expired in Salla | Show "Code expired" + log alert |
+| Influencer disabled mid-session | Honor session, no new attributions |
+| Customer manually enters different coupon at checkout | Honor manual entry, log attribution loss |
+| Bot traffic with influencer params | Filter by user_agent + behavioral heuristics |
+| UTM params changed mid-checkout | Last-applied wins (configurable) |
+| Order refunded after attribution | Mark attribution as refunded, deduct from revenue |
+| Merchant adds influencer with duplicate slug | Validation error in admin UI |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Banner is sticky-top with smaller size, dismissible
+- **A11y:** Influencer name announced on landing, keyboard-dismissible banner
+- **Salla Integration:** Coupons API for auto-apply (Confirmed). Salla webhooks for order tracking. Twilight body hooks for banner injection.
+
+#### Effort
+Medium: **4-6 dev days** (parser + dashboard + admin UI)
+
+---
+
+### 27.4 Feature 8 — Out-of-Stock Substitute Engine (Module 50)
+
+#### Description
+When a customer lands on a product page where the item is out of stock, instead of just showing "Notify me when available" (which captures latent interest but loses immediate sales), this engine actively suggests 3 similar in-stock products + optionally captures preference for original. Drives substitute conversion (target: 30-40% of OOS traffic recovers as alternative purchase).
+
+#### User Flow
+
+```
+[Customer visits PDP for product]
+     ↓
+[Product detected as OOS (stock = 0)]
+     ↓
+[Standard "Out of Stock" replaced with substitute panel]
+     ↓
+[Panel shows:
+  - "هذا المنتج نفد. هل تجربين بدائل مشابهة؟"
+  - 3 alternatives (same category, similar price, similar attributes)
+  - "أو احفظ الأصلي للانتظار" button
+]
+     ↓
+[Customer either:
+  A) Clicks alternative → goes to PDP → may convert
+  B) Saves original → standard back-in-stock flow
+  C) Leaves → tracked as "lost despite substitute offer"
+]
+```
+
+#### Functional Requirements
+
+- **FR-50.1** Detect OOS state via Salla Products API: stock_quantity === 0 OR availability === 'out_of_stock'.
+- **FR-50.2** Query Products API for similar products: same category, price within ±30%, similar tags/attributes.
+- **FR-50.3** Rank candidates by: same brand (+10), close price (+5), same color/size (+5), best-seller status (+3).
+- **FR-50.4** Display top 3 candidates in substitute panel with image, name, price, "View" button.
+- **FR-50.5** Replace standard Salla "Out of Stock" message with our substitute panel.
+- **FR-50.6** Provide secondary action: "احفظ هذا المنتج" → falls through to Module 8 (Back-in-Stock signal).
+- **FR-50.7** Track event when customer clicks alternative (was offered, was clicked, did_convert).
+- **FR-50.8** Dashboard metric: "OOS Recovery Rate" = (substitute conversions) / (OOS PDP visits).
+- **FR-50.9** Configurable substitute matching: by category only, by attributes, by AI similarity (Phase 3).
+- **FR-50.10** Doctor signal: if substitute conversion rate < 15%, suggest improving product taxonomy/tags.
+
+#### UX Requirements
+
+**Substitute Panel Design:**
+- Replaces "Out of Stock" badge area on PDP
+- Soft empathy: "😔 هذا المنتج نفد حاليًا — إليكِ بدائل قد تعجبكِ"
+- 3 product cards horizontal (mobile: vertical scroll)
+- Each card: image, name, price, "تصفح" button
+- "بدلًا من ذلك، احفظ الأصلي" link below
+
+**Visual:**
+- Cards similar to Salla product cards (inherit theme)
+- Subtle highlight on hover
+- Clear price comparison if alternatives are cheaper
+
+#### Configuration
+
+```typescript
+interface OOSSubstituteConfig {
+  enabled: boolean;
+  numberOfAlternatives: number;            // default 3
+  matchingStrategy: 'category_only' | 'attributes' | 'ai_similar';
+  priceRangeFactor: number;                // default 0.3 (±30%)
+  fallbackToBackInStock: boolean;          // default true
+  rankingWeights: {
+    sameBrand: number;
+    closePrice: number;
+    sameAttributes: number;
+    bestSeller: number;
+  };
+}
+```
+
+#### Data Captured
+
+```typescript
+interface OOSEvent {
+  id: string;
+  merchant_id: string;
+  original_product_id: string;
+  session_id: string;
+  alternatives_shown: string[];            // array of product_ids
+  alternative_clicked?: string;            // product_id if clicked
+  saved_original: boolean;                 // fell through to back-in-stock
+  resulted_in_purchase?: boolean;          // tracked if same session
+  purchased_product_id?: string;
+  created_at: timestamp;
+}
+```
+
+#### Edge Cases
+
+| Edge Case | Behavior |
+|---|---|
+| Product has no similar items in catalog | Hide substitute panel, show back-in-stock only |
+| All alternatives also OOS | Filter only in-stock, show fewer if needed |
+| Customer was specifically searching this SKU | Lower priority for substitutes (track as searched) |
+| Substitute is more expensive | Show price difference clearly, no surprise |
+| Substitute conversion vs original restock | Both tracked separately for merchant decision |
+| Bot/scraper detected | Skip substitute display (waste of API calls) |
+| Merchant disables product mid-display | Auto-refresh, exclude from alternatives |
+| Customer dismisses panel | Show back-in-stock CTA instead |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Vertical scroll for alternatives, larger images
+- **A11y:** Each alternative is a focusable button, prices announced
+- **Salla Integration:** Products API for similarity queries, Twilight PDP hooks for injection. May require custom event listener if Salla auto-renders OOS message.
+
+#### Effort
+Medium: **5-6 dev days** (matching algorithm + UI + tracking)
+
+---
+
+### 27.5 Feature 9 — First-Time vs Returning Recognition (Module 39)
+
+#### Description
+Provides a different first-touch experience based on whether the visitor is new (anonymous, no cookie) or returning (recognized via cookie OR Salla customer login). For new visitors, presents a 3-option intent selector (gift / personal / browse). For returning visitors, shows last-viewed product + welcome-back. This produces immediate intent classification for segmentation + better personalized experience.
+
+#### User Flow
+
+```
+[Visitor lands on store homepage or category]
+     ↓
+[Smart Snippet checks: 
+  - Cookie: has_visited=true?
+  - Salla customer object: logged_in?
+]
+     ↓
+[CASE A: First-time visitor]
+     ↓
+[Welcome banner: 3 intent options]
+     ↓
+[Customer taps: "🎁 هدية" / "💄 لي شخصيًا" / "🔍 أتصفح"]
+     ↓
+[Tag stored in session + cookie set]
+     ↓
+[Personalized navigation/category prioritization]
+
+[CASE B: Returning visitor]
+     ↓
+[Welcome-back banner with name (if known)]
+     ↓
+[Last-viewed product strip]
+     ↓
+[Optionally: AI suggestion based on past intent]
+```
+
+#### Functional Requirements
+
+- **FR-39.1** Detect visitor state on initial page load: read `ss_returning` cookie + Salla customer.is_logged_in flag.
+- **FR-39.2** First-time: show intent banner on homepage and category pages (NOT PDP/cart).
+- **FR-39.3** Intent options: configurable per merchant (default 3: gift/personal/browse).
+- **FR-39.4** On intent click: set cookie `ss_returning=true` + `ss_intent=<value>`, store in session.
+- **FR-39.5** Returning visitor: show personalized banner with stored intent or last activity reference.
+- **FR-39.6** If Salla customer logged in: show name from Salla customer object.
+- **FR-39.7** Last-viewed product strip uses localStorage cache of recent PDP visits.
+- **FR-39.8** Dashboard: visitor intent distribution (% gift, personal, browse) for marketing segmentation.
+- **FR-39.9** Doctor rule: if gift intent > 30%, suggest gift-focused homepage section or Gift Finder app.
+- **FR-39.10** Optional: pass intent tag to URL params for marketing pixels (Facebook custom audience).
+
+#### UX Requirements
+
+**First-Time Banner:**
+- Top of page, dismissible
+- Three large tap-friendly buttons
+- Emoji + clear label per option
+- Subtle, not aggressive
+
+**Returning Banner:**
+- More personal: "👋 مرحبًا بعودتك" + name if known
+- Shows: last-viewed product card + "متابعة" CTA
+- Includes "Continue where you left off" link
+
+**Visual:**
+- Different colors for first-time (welcoming blue) vs returning (warm yellow/orange)
+- Smooth slide-in animation
+- Auto-dismiss after intent selected (first-time)
+
+#### Configuration
+
+```typescript
+interface VisitorRecognitionConfig {
+  enabled: boolean;
+  firstTimePages: string[];                // page types where banner shows
+  intentOptions: {
+    id: string;
+    label_ar: string;
+    label_en: string;
+    icon: string;
+  }[];
+  returningBanner: {
+    showLastViewed: boolean;
+    showNameIfKnown: boolean;
+    autoDismissSeconds?: number;
+  };
+  cookieExpiryDays: number;                // default 365
+  passIntentToPixel: boolean;              // for FB/Google audiences
+}
+```
+
+#### Data Captured
+
+```typescript
+interface VisitorIntent {
+  id: string;
+  merchant_id: string;
+  session_id: string;
+  customer_id?: string;
+  visitor_state: 'first_time' | 'returning';
+  intent_tag?: string;                     // gift/personal/browse/etc.
+  selected_at?: timestamp;
+  last_visit_at?: timestamp;
+  total_visits: number;
+  first_visit_at: timestamp;
+  last_intent?: string;                    // from previous session
+}
+```
+
+#### Edge Cases
+
+| Edge Case | Behavior |
+|---|---|
+| Customer clears cookies | Treated as first-time again (acceptable) |
+| Salla logged-in but no cookie | Use customer ID, set cookie |
+| Cookie says returning but Salla logged out | Trust cookie, no name shown |
+| Intent selected but customer changes mind | Allow override, log changes |
+| Banner dismissed without intent | Log dismissal, no tag |
+| Mobile vs desktop different browsers | Independent (acceptable) |
+| Bot/crawler traffic | Skip banner entirely (UA detection) |
+| Customer with ad blocker | Banner may not render; graceful fallback |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Stacked button layout, larger tap targets
+- **A11y:** Intent options as proper buttons, keyboard navigable, announced
+- **Salla Integration:** Twilight SDK for customer state (Confirmed via docs.salla.dev/422610m0)
+
+#### Effort
+Medium: **4-5 dev days**
+
+---
+
+### 27.6 Feature 10 — Coming Soon / Pre-Launch Capture (Module 51)
+
+#### Description
+For products that are configured but not yet publicly available (status="hidden" or custom "coming_soon" tag), replaces the standard PDP with a pre-launch teaser featuring product photo, expected launch date, and an interest capture form (phone or email). Optionally offers early-bird discount coupon to subscribers. When product status changes to "active", auto-notifies all subscribers via WhatsApp/Email.
+
+This converts pre-launch curiosity into a guaranteed first-day sales list.
+
+#### User Flow
+
+```
+[Merchant creates product in Salla with status="hidden" + tag "coming_soon"]
+     ↓
+[Customer somehow accesses URL (preview link, leaked URL, etc.)]
+     ↓
+[Smart Snippet detects status, replaces PDP with teaser]
+     ↓
+[Teaser shows:
+  - Product photo (slightly blurred or full)
+  - Expected launch date
+  - Description teaser
+  - "اشتركي لتنبيهك عند الإطلاق" form
+  - Optional: "احصلي على 15% خصم Early Bird"
+]
+     ↓
+[Customer submits → added to pre_launch_subscribers table]
+     ↓
+[When product status → "active":
+  - Auto-notify all subscribers
+  - Provide early-bird coupon if configured
+]
+```
+
+#### Functional Requirements
+
+- **FR-51.1** Detect product status from Twilight context: status === 'hidden' OR has tag 'coming_soon'.
+- **FR-51.2** Replace default Salla PDP rendering with pre-launch template (via Twilight hooks).
+- **FR-51.3** Pre-launch template shows: product images (blurred config option), name, teaser description, expected launch date.
+- **FR-51.4** Capture form: phone OR email (at least one required) + PDPL consent + optional early-bird opt-in.
+- **FR-51.5** Store in `pre_launch_subscribers` table: customer_phone_hash, product_id, subscribed_at, early_bird_opt_in.
+- **FR-51.6** Subscribe to Salla `product.status.updated` webhook.
+- **FR-51.7** When status changes to 'active': queue notifications to all subscribers within 5 minutes.
+- **FR-51.8** Notification template: includes product link, optional early-bird coupon code (auto-generated single-use).
+- **FR-51.9** Track conversion: subscribers → first-day purchases attribution.
+- **FR-51.10** Dashboard: per-product pre-launch subscriber count, conversion rate after launch.
+
+#### UX Requirements
+
+**Pre-Launch Page Design:**
+- Build anticipation: large product image, teaser tagline
+- Countdown timer to launch date (if known)
+- "اشترك للحصول على وصول مبكر" CTA
+- Trust signals: "X متابع للإطلاق"
+- Social share buttons (Twitter/Instagram)
+
+**Visual:**
+- Cinematic feel (different from regular PDP)
+- Premium typography
+- Subtle animation on countdown
+
+**Notification UX:**
+- WhatsApp message with product image + "تم الإطلاق!" + early-bird code
+- Email version with rich product preview
+
+#### Configuration
+
+```typescript
+interface PreLaunchConfig {
+  enabled: boolean;
+  detectionMethod: 'status_hidden' | 'custom_tag' | 'both';
+  customTagName: string;                   // default "coming_soon"
+  imageBlur: boolean;                      // default false
+  showCountdown: boolean;
+  earlyBirdEnabled: boolean;
+  earlyBirdDiscountPercent: number;        // default 15
+  earlyBirdCouponPrefix: string;           // e.g., "EARLY_"
+  notificationChannels: ('whatsapp' | 'email')[];
+  notificationDelaySeconds: number;        // default 300 (batch notifications)
+}
+```
+
+#### Data Captured
+
+```typescript
+interface PreLaunchSubscriber {
+  id: string;
+  merchant_id: string;
+  product_id: string;
+  customer_phone_hash?: string;
+  customer_email?: string;
+  consent_given_at: timestamp;
+  early_bird_opt_in: boolean;
+  notified_at?: timestamp;
+  notification_clicked_at?: timestamp;
+  purchase_attributed?: string;            // order_id if converted
+  subscribed_at: timestamp;
+}
+```
+
+#### Edge Cases
+
+| Edge Case | Behavior |
+|---|---|
+| Product status reverts from active → hidden | Don't re-notify, but show "back to pre-launch" for new visitors |
+| Subscriber already has account | Match by email/phone, link to existing |
+| Launch date passes without status change | Show "delayed" message + invite re-subscribe |
+| Customer unsubscribes before launch | Honor immediately, remove from queue |
+| Early-bird coupon limits (e.g., first 100 only) | Configurable limit + waitlist |
+| Multiple products coming soon, customer subscribes to several | Independent subscriptions per product |
+| Merchant deletes product before launch | Notify subscribers of cancellation |
+| 1000+ subscribers at launch time | Batch notifications over 1 hour to respect rate limits |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Full-screen experience, large CTA button at bottom
+- **A11y:** Countdown announced periodically, form fields labeled
+- **Salla Integration:** Products API for status detection, `product.updated` webhook (Confirmed) for status change events, Twilight PDP override
+
+#### Effort
+Medium: **4-5 dev days**
+
+---
+
+### 27.7 Feature 11 — Cart Sharing & Save Link (Module 55)
+
+#### Description
+Generates a shareable URL containing the customer's cart state, allowing them to send the cart to friends/family/themselves via WhatsApp, Email, or copy-paste. Optionally rewards both sharer and buyer with discount if shared cart converts. Enables social commerce patterns (gift lists, "look what I want" sharing) that Salla doesn't natively support.
+
+#### User Flow
+
+```
+[Customer adds 3-5 items to cart]
+     ↓
+[Sees "💾 احفظي أو شاركي السلة" button in cart]
+     ↓
+[Clicks → modal opens with options]
+     ↓
+[Three options:
+  A) Copy link
+  B) Share to WhatsApp (deep link)
+  C) Send to email
+]
+     ↓
+[Link generated with JWT containing cart state]
+     ↓
+[Recipient opens link → cart reconstructed in their browser]
+     ↓
+[If recipient purchases → both get 10% discount]
+     ↓
+[Track in cart_shares table]
+```
+
+#### Functional Requirements
+
+- **FR-55.1** "Share Cart" button injected into Salla cart page via Twilight hooks.
+- **FR-55.2** On click: serialize cart state to JWT (product_ids, quantities, variants, applied coupons).
+- **FR-55.3** Generate shareable URL: `/cart/share/<jwt_token>` with 30-day expiry.
+- **FR-55.4** Modal shows: copy link, WhatsApp share, email share, optional sharer's note (max 200 chars).
+- **FR-55.5** Recipient clicks link → cart state reconstructed in their Salla session (preserving their account).
+- **FR-55.6** Recipient sees "هذه السلة من [Sharer]" banner with sharer's note if provided.
+- **FR-55.7** Track share-to-purchase attribution: cart_share_id linked to subsequent order.
+- **FR-55.8** Dual reward (if configured): apply coupon to recipient at checkout, credit sharer's account.
+- **FR-55.9** Dashboard: total shares, share conversion rate, top sharers leaderboard.
+- **FR-55.10** Sharing analytics: which channels work best (WhatsApp vs email), avg cart value shared.
+
+#### UX Requirements
+
+**Share Modal:**
+- Three large action buttons (copy, WhatsApp, email)
+- Preview of shared cart (top 3 items + total)
+- Optional note field
+- "🎁 كلاكما يحصل على 10% خصم" reassurance
+
+**Recipient Experience:**
+- Friendly banner: "👋 [Name] شاركت معك هذه السلة"
+- Optional note from sharer prominently displayed
+- Items pre-added to recipient's cart
+- "إكمال الشراء" primary CTA
+
+#### Configuration
+
+```typescript
+interface CartSharingConfig {
+  enabled: boolean;
+  shareChannels: ('copy' | 'whatsapp' | 'email')[];
+  allowSharerNote: boolean;
+  noteMaxLength: number;                   // default 200
+  linkExpiryDays: number;                  // default 30
+  dualReward: {
+    enabled: boolean;
+    sharerDiscountPercent: number;         // default 10
+    buyerDiscountPercent: number;          // default 10
+    minOrderValue?: number;                // discount eligibility
+  };
+}
+```
+
+#### Data Captured
+
+```typescript
+interface CartShare {
+  id: string;
+  merchant_id: string;
+  sharer_customer_id?: string;
+  sharer_session_id: string;
+  cart_state: {                            // serialized cart
+    items: { product_id: string; variant_id?: string; quantity: number }[];
+    applied_coupons: string[];
+  };
+  sharer_note?: string;
+  share_channel: 'copy' | 'whatsapp' | 'email';
+  shared_at: timestamp;
+  expires_at: timestamp;
+  recipient_opened_at?: timestamp;
+  resulted_in_order_id?: string;
+  attribution_revenue?: number;
+}
+```
+
+#### Edge Cases
+
+| Edge Case | Behavior |
+|---|---|
+| Recipient adds items + shared items | Combine into single cart |
+| Shared item now out of stock | Show "X is now unavailable" + remove from cart |
+| Shared coupon now expired | Show notice, recipient can still buy at regular price |
+| Token tampered | 400 + log security event |
+| Token expired (>30 days) | Show "This shared cart has expired" + suggest fresh browse |
+| Same recipient opens link 10 times | Track unique vs total opens |
+| Sharer not logged in (anonymous) | Can still share, attribution stored in cookie |
+| Self-share (sharer = recipient) | Allow (legitimate use case: save cart for later) |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Native WhatsApp share intent, share sheet support on iOS/Android
+- **A11y:** All share options keyboard accessible, screen reader announces share confirmation
+- **Salla Integration:** Cart API for state reconstruction, Coupons API for dual reward
+
+#### Effort
+Medium: **4-5 dev days**
+
+---
+
+### 27.8 Feature 12 — Vertical Discovery Quiz (Module 46)
+
+#### Description
+A short interactive quiz (3-5 questions, < 60 seconds) tailored to the merchant's vertical (Beauty / Fashion / Perfumes / Gifts / Other) that builds a `customer_profile` JSON. The profile captures preferences (e.g., skin type, style preference, scent family) that informs product recommendations, email campaigns, and dashboard segmentation. Increases repeat purchase rate by ~2.3x compared to unprofiled customers.
+
+#### User Flow
+
+```
+[Customer visits homepage or category page]
+     ↓
+[First-time + selected "Personal" intent (from Module 39)]
+     ↓
+[CTA appears: "🌟 اعرفي بشرتك خلال 60 ثانية"]
+     ↓
+[Customer clicks → quiz modal opens]
+     ↓
+[3-5 multi-choice questions per vertical template]
+     ↓
+[Generates profile: e.g., { skin_type: 'oily', concerns: ['acne', 'oiliness'], routine_level: 'intermediate' }]
+     ↓
+[Shows: "✨ ملف بشرتك جاهز" + 3 recommended products]
+     ↓
+[Optional: capture phone for personalized recommendations later]
+     ↓
+[Profile stored, used for filtering + campaigns]
+```
+
+#### Functional Requirements
+
+- **FR-46.1** Configurable quiz templates per vertical (default: beauty, fashion, perfumes, gifts).
+- **FR-46.2** Each template: 3-5 questions, multi-choice or single-choice, with branching logic.
+- **FR-46.3** Quiz UI: progress bar, "Next" / "Back" buttons, "Skip" option.
+- **FR-46.4** Generate `customer_profile` JSON with: vertical-specific dimensions (e.g., skin_type for beauty).
+- **FR-46.5** Store profile in `customer_profiles` table (linked to phone hash or customer_id).
+- **FR-46.6** Apply profile to PDP filtering: highlight products matching profile.
+- **FR-46.7** Doctor rule: surface products customers profiled but didn't buy.
+- **FR-46.8** Profile-based segmentation in dashboard (e.g., "Customers with dry skin: 234").
+- **FR-46.9** Email/WhatsApp campaigns can filter by profile attributes.
+- **FR-46.10** Allow profile update/retake.
+- **FR-46.11** Show "Recommended for you" badges on products matching profile (subtle UI).
+- **FR-46.12** Track quiz completion rate, drop-off question, time-to-complete.
+
+#### UX Requirements
+
+**Quiz Design:**
+- Modal that's "fun, not interrogating"
+- Visual options with icons/images where helpful
+- Smooth transitions between questions
+- "Skip" available but discouraged subtly
+
+**Result Screen:**
+- "✨ ملف بشرتك جاهز" with profile summary
+- 3 recommended products shown immediately
+- "احفظي ملفك" CTA (capture phone optional)
+
+**Profile Application:**
+- Subtle "Match" badge on products matching profile
+- "ملفك" filter chip in category pages
+
+#### Configuration
+
+```typescript
+interface DiscoveryQuizConfig {
+  enabled: boolean;
+  vertical: 'beauty' | 'fashion' | 'perfumes' | 'gifts' | 'custom';
+  questions: {
+    id: string;
+    type: 'single_choice' | 'multi_choice' | 'slider' | 'text';
+    label_ar: string;
+    label_en: string;
+    options: { value: string; label_ar: string; label_en: string; icon?: string }[];
+    skippable: boolean;
+  }[];
+  resultMapping: {                         // profile generation logic
+    [dimension: string]: { from: string; value: string }[];
+  };
+  recommendationStrategy: 'tag_match' | 'category_match' | 'ai_similar';
+}
+```
+
+#### Data Captured
+
+```typescript
+interface CustomerProfile {
+  id: string;
+  merchant_id: string;
+  customer_phone_hash?: string;
+  customer_id?: string;
+  vertical: string;
+  profile_data: Record<string, any>;       // flexible per vertical
+  quiz_completion_seconds: number;
+  questions_answered: number;
+  questions_skipped: number;
+  completed_at: timestamp;
+  updated_at: timestamp;
+}
+```
+
+#### Edge Cases
+
+| Edge Case | Behavior |
+|---|---|
+| Customer starts quiz, abandons mid-way | Save partial progress, allow resume |
+| Customer takes quiz multiple times | Overwrite profile (with consent confirmation) |
+| Quiz template changes after profile saved | Re-prompt to update profile |
+| Customer skips all questions | Don't save profile, suggest retake later |
+| No products match profile | Fall back to category bestsellers |
+| Conflicting answers (e.g., "oily skin" + "dry skin") | Last answer wins, flag for review |
+| Profile aging (e.g., customer info from 2 years ago) | Suggest update after 365 days |
+| Mobile vs desktop different profiles | Allow sync via email/phone match |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Full-screen takeover modal, swipe between questions
+- **A11y:** All options keyboard-navigable, screen reader friendly
+- **Salla Integration:** Products API for filtering/recommendations, Customer object for profile linking
+
+#### Effort
+Medium-Large: **5-7 dev days** (quiz engine + 3 vertical templates + profile filtering)
+
+---
+
+### 27.9 Feature 13 — Birthday/Anniversary Capture (Module 49)
+
+#### Description
+Captures personal dates (birthday, wedding anniversary, etc.) from customers via opt-in forms (post-checkout or in account section), then triggers personalized WhatsApp/Email campaigns 3 days before the event with a gift code or special offer. Birthday campaigns historically achieve 3-4x higher CTR than generic emails and build emotional loyalty.
+
+#### User Flow
+
+```
+[Trigger Point A: Post-checkout success page]
+     ↓
+[Banner: "🎉 لنحتفل بكِ! أخبرينا متى عيد ميلادك (اختياري)"]
+     ↓
+[Customer fills DD/MM (year optional)]
+     ↓
+[Stored in birthday_subscribers table with PDPL consent]
+
+     ────────────────────────────
+
+[Trigger Point B: Daily cron at 8 AM Saudi time]
+     ↓
+[Finds all subscribers with birthday in 3 days]
+     ↓
+[Queue WhatsApp/Email with personalized gift code]
+     ↓
+[Customer receives: "🎂 عيد ميلاد سعيد! هدية لكِ: code BIRTHDAY20"]
+```
+
+#### Functional Requirements
+
+- **FR-49.1** Form fields: birthday (DD/MM required, YYYY optional), anniversary (DD/MM optional).
+- **FR-49.2** PDPL-compliant consent: explicit checkbox, documented.
+- **FR-49.3** Two trigger points configurable: post-checkout, account section, both.
+- **FR-49.4** Daily cron at 8 AM Saudi time scans `birthday_subscribers` for dates matching today + 3.
+- **FR-49.5** Queue notification with: personalized greeting, gift code (auto-generated single-use), expiry (14 days).
+- **FR-49.6** Gift code amount configurable per merchant (default 20% off, max value).
+- **FR-49.7** Track campaign metrics: sent, opened, clicked, redeemed.
+- **FR-49.8** Dashboard: "Birthdays this month" calendar view, campaign performance.
+- **FR-49.9** Optional: anniversary campaigns same logic with different message.
+- **FR-49.10** Year-of-birth not required (respect privacy); use date only.
+
+#### UX Requirements
+
+**Capture Form:**
+- Friendly: "🎉 لنحتفل بكِ"
+- Two date inputs (DD/MM dropdowns, large touch targets)
+- Year optional with note
+- Consent checkbox clear
+
+**Notification Design:**
+- Festive WhatsApp template with emoji + image
+- Personalized name if known
+- Clear CTA: "استخدمي الكود قبل [date]"
+
+**Dashboard:**
+- Calendar view showing upcoming birthdays
+- Campaign creator with template preview
+
+#### Configuration
+
+```typescript
+interface BirthdayCaptureConfig {
+  enabled: boolean;
+  triggerPoints: ('post_checkout' | 'account_section' | 'banner')[];
+  captureAnniversary: boolean;
+  notificationDaysBefore: number;          // default 3
+  giftCode: {
+    discountType: 'percent' | 'fixed';
+    discountValue: number;                 // 20 (%)
+    maxValue?: number;                     // cap
+    expiryDays: number;                    // default 14
+    codePrefix: string;                    // e.g., "BIRTHDAY_"
+  };
+  channels: ('whatsapp' | 'email')[];
+  messageTemplate_ar: string;              // with {{name}}, {{code}}
+  messageTemplate_en: string;
+}
+```
+
+#### Data Captured
+
+```typescript
+interface BirthdaySubscriber {
+  id: string;
+  merchant_id: string;
+  customer_phone_hash?: string;
+  customer_email?: string;
+  birthday_day: number;                    // 1-31
+  birthday_month: number;                  // 1-12
+  birthday_year?: number;                  // optional
+  anniversary_day?: number;
+  anniversary_month?: number;
+  consent_given_at: timestamp;
+  last_notified_at?: timestamp;
+  last_redemption_at?: timestamp;
+  subscribed_at: timestamp;
+}
+```
+
+#### Edge Cases
+
+| Edge Case | Behavior |
+|---|---|
+| Feb 29 birthday | Notify on Feb 28 in non-leap years |
+| Customer enters past date for "anniversary" | Accept, treat as past anniversary |
+| Multiple subscribers same phone | Use last submission (likely typo correction) |
+| Customer unsubscribes before birthday | Honor immediately, no notification |
+| Birthday today (no 3-day buffer) | Send same-day greeting (no gift code expiring) |
+| Channel fails (WhatsApp blocked) | Fallback to email |
+| Gift code already used | Show "Already redeemed" + offer regular discount |
+| Merchant disables campaign mid-cycle | Stop future notifications, honor in-progress |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Native date picker, optimized form layout
+- **A11y:** Date fields labeled, year-optional clearly indicated
+- **Salla Integration:** Possible Salla customer.birthday field — verify if natively supported. Coupons API for gift code generation. WhatsApp/Email infrastructure from MVP.
+
+#### Effort
+Small: **2-3 dev days**
+
+---
+
+### 27.10 Feature 14 — Smart Reorder Timing (Module 44)
+
+#### Description
+Auto-triggered reorder reminders based on product category timing (e.g., serum=60 days, supplement=30 days, perfume=90 days). After customer purchases, system tracks expected depletion based on product category, then sends a WhatsApp reminder with one-click reorder link. Drives 22-35% reorder rate increase without manual merchant effort.
+
+#### User Flow
+
+```
+[Customer purchases Vitamin C Serum (30ml)]
+     ↓
+[Product mapped to category: "serum" (60-day reorder timing)]
+     ↓
+[Daily cron at 8 AM scans orders 55-65 days old]
+     ↓
+[Finds matching orders, queues WhatsApp]
+     ↓
+[Customer receives:
+  "مرحبًا [Name] 👋
+  طلبتي Vitamin C Serum قبل 60 يوم تقريبًا.
+  عادة يخلص في هذا الوقت.
+  
+  طلب جديد بنقرة واحدة؟
+  [Reorder] [Remind later]"
+]
+     ↓
+[Customer clicks Reorder → cart auto-populated, ready for checkout]
+     ↓
+[Track conversion in reorder_reminders table]
+```
+
+#### Functional Requirements
+
+- **FR-44.1** `reorder_category_timings` config table maps product categories or product tags to expected depletion days.
+- **FR-44.2** Default timings: serum 60d, shampoo 45d, perfume 90d, supplement 30d, vitamin 55d (configurable).
+- **FR-44.3** Daily cron at 8 AM Saudi time scans orders aged [timing-5, timing+5] days.
+- **FR-44.4** For each matching order, check if customer hasn't reordered same product yet.
+- **FR-44.5** Send WhatsApp reminder via merchant's template (Meta-approved).
+- **FR-44.6** Reorder link reconstructs cart with original products + applied default shipping.
+- **FR-44.7** Track outcomes: reminder_sent, reminder_clicked, resulted_in_reorder.
+- **FR-44.8** Dashboard: reorder reminder funnel (sent → clicked → converted).
+- **FR-44.9** Doctor rule: if reorder rate < 15% for a category, suggest re-evaluating timing.
+- **FR-44.10** Throttle: max 1 reminder per customer per product (don't spam).
+- **FR-44.11** Customer can opt out via WhatsApp reply or consent center.
+
+#### UX Requirements
+
+**WhatsApp Message:**
+- Personalized: name + product
+- Clear value: "حان وقت إعادة الطلب"
+- Two options: Reorder now / Remind later
+- Unsubscribe link in footer
+
+**Merchant Dashboard:**
+- "Reorder Reminders" section
+- Funnel chart: sent → clicked → converted
+- Per-category breakdown
+- Revenue attributed to reminders
+
+#### Configuration
+
+```typescript
+interface ReorderTimingConfig {
+  enabled: boolean;
+  categoryTimings: Map<string, number>;    // category_id → days
+  productTagTimings: Map<string, number>;  // tag → days
+  defaultTiming: number;                   // fallback, default 60
+  scanRangeDays: number;                   // default 5 (timing ± this)
+  reminderTemplateAr: string;
+  reminderTemplateEn: string;
+  channels: ('whatsapp' | 'email')[];
+  maxRemindersPerCustomerPerProduct: number; // default 1
+  throttlePerDay: number;                  // max reminders sent per day per merchant
+}
+```
+
+#### Data Captured
+
+```typescript
+interface ReorderReminder {
+  id: string;
+  merchant_id: string;
+  customer_phone_hash: string;
+  original_order_id: string;
+  product_id: string;
+  product_category: string;
+  expected_reorder_date: date;
+  reminder_sent_at: timestamp;
+  reminder_clicked_at?: timestamp;
+  reorder_order_id?: string;
+  reorder_revenue?: number;
+  customer_opted_out_at?: timestamp;
+}
+```
+
+#### Edge Cases
+
+| Edge Case | Behavior |
+|---|---|
+| Customer already reordered before reminder | Skip, don't send |
+| Customer bought multiple of same product | Adjust expected depletion (e.g., 2x quantity = 2x timing) |
+| Product no longer available | Suggest alternative or skip |
+| Customer changed phone number | Use latest known via Salla customer object |
+| Category timing unknown for new product | Use default timing |
+| Customer opted out | Honor, no future reminders |
+| Reminder failed (WhatsApp error) | Retry once, then mark as failed |
+| Customer reorders after reminder but separately | Track as converted (attribution window 7 days) |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** WhatsApp deep link to merchant store with cart pre-populated
+- **A11y:** Email version available for screen reader users
+- **Salla Integration:** Orders API to scan orders (Confirmed), WhatsApp BSP for messaging, Cart API for reconstructing cart
+
+#### Effort
+Medium: **5-7 dev days**
+
+---
+
+### 27.11 Phase 2 Roadmap (10 Remaining Modules)
+
+These 10 modules remain in Phase 2 roadmap (Months 10-18 post-MVP launch). Specs condensed.
+
+#### Module 37 — Checkout Hesitation Capture
+**Description:** Capture abandonment reasons on checkout page specifically.
+**Key FRs:** Exit intent detection on checkout, 6-option reason selector, separate analytics from PDP hesitations.
+**Salla Integration:** Twilight checkout hooks (⚠️ NEEDS VERIFICATION).
 **Effort:** Medium-Large (5-7 days).
 
-#### Module 48 — Recently Viewed Memory Strip (🟡 Phase 1 — overlap care)
-**Description:** Sticky horizontal strip showing recently viewed products + Dashboard tracking.
-**Key FRs:**
-- FR-48.1: Store last 20 viewed products in localStorage per visitor.
-- FR-48.2: Display sticky strip on PDP/Cart with horizontal scroll.
-- FR-48.3: Track view-to-purchase conversion per product in `widget_events`.
-
-**Salla Integration:** Twilight body hooks *(Confirmed)*.
-**Dependencies:** Module 35 (Analytics infrastructure).
-**Effort:** Small-Medium (3-4 days).
-**Note:** Some Salla themes already show "recently viewed" natively. Position our snippet to add tracking value, not duplicate visual.
-
-#### Module 49 — Birthday/Anniversary Capture (🟡 Phase 1)
-**Description:** Capture personal dates for triggered campaigns.
-**Key FRs:**
-- FR-49.1: Form fields: birthday (DD/MM), anniversary (optional, DD/MM).
-- FR-49.2: PDPL-compliant consent for date storage.
-- FR-49.3: Daily cron checks dates, triggers WhatsApp/Email 3 days before.
-- FR-49.4: Dashboard: "Birthdays this month" with campaign launcher.
-
-**Salla Integration:** Customer fields *(verify if natively supported)*.
-**Dependencies:** Module 7 (Interest Capture form components).
-**Effort:** Small (2-3 days).
-**Verification Needed:** Whether Salla `customer` object has birthday/anniversary fields natively.
-
-#### Module 51 — Coming Soon / Pre-Launch Capture (🟡 Phase 1)
-**Description:** Capture pre-launch interest for unpublished products.
-**Key FRs:**
-- FR-51.1: Detect product status="hidden" or custom "coming_soon" tag.
-- FR-51.2: Replace standard PDP with pre-launch teaser + email/phone capture.
-- FR-51.3: Optional "Early Bird discount" coupon assignment.
-- FR-51.4: Auto-notify all subscribers when product status changes to "active".
-
-**Salla Integration:** Products API + status webhooks *(Confirmed)*.
-**Dependencies:** Module 8 (Notification infrastructure).
-**Effort:** Medium (4-5 days).
-
-#### Module 54 — Influencer Code Capture & Attribution (🟡 Phase 1)
-**Description:** Capture influencer-specific traffic, track per-influencer revenue.
-**Key FRs:**
-- FR-54.1: Parse UTM params + special URL slugs (`/?ref=sara_kn`).
-- FR-54.2: Display personalized landing message with influencer name.
-- FR-54.3: Auto-apply influencer coupon code at checkout.
-- FR-54.4: Dashboard: per-influencer revenue, AOV, conversion rate, CAC.
-
-**Salla Integration:** Coupons API for auto-apply *(Confirmed)*.
-**Dependencies:** None.
-**Effort:** Medium (4-6 days).
-
-#### Module 55 — Cart Sharing & Save Link (🟡 Phase 1)
-**Description:** Generate shareable cart URL for WhatsApp/Email sharing with dual reward.
-**Key FRs:**
-- FR-55.1: Generate signed JWT containing cart state.
-- FR-55.2: Public URL `/cart/share/<token>` reconstructs cart on visit.
-- FR-55.3: Track shared cart conversions with referral attribution.
-- FR-55.4: Optional 10% discount for both sharer and buyer upon purchase.
-
-**Salla Integration:** Cart API for state reconstruction.
-**Dependencies:** Module 22 (Cart-related infrastructure from Phase 1).
-**Effort:** Medium (4-5 days).
-
----
-
-### 27.3 Phase 2 Modules (Months 10-18)
-
-Phase 2 modules require deeper data, technical verification, or careful positioning.
-
-#### Module 37 — Checkout Hesitation Capture (🟠 Phase 2)
-**Description:** Capture abandonment reasons specifically on checkout page.
-**Key FRs:**
-- FR-37.1: Detect exit intent on checkout page (mouseleave / scroll-up / idle).
-- FR-37.2: Show 6-option reason selector (shipping, payment, security, etc.).
-- FR-37.3: Aggregate in `checkout_hesitations` table separate from PDP hesitations.
-- FR-37.4: Trigger different Doctor rules vs PDP hesitations.
-
-**Salla Integration:** Twilight checkout hooks (⚠️ **NEEDS VERIFICATION**).
-**Dependencies:** Feature 1 (Hesitation Capture) for shared components.
-**Effort:** Medium-Large (5-7 days, contingent on Salla checkout customization).
-
-#### Module 41 — Live Stock Urgency Signal (🟠 Phase 2 — overlap care)
-**Description:** Transparent stock count + social proof ("X left + Y customers viewing").
-**Key FRs:**
-- FR-41.1: Subscribe to `product.quantity.low` webhook *(Confirmed)*.
-- FR-41.2: Display badge only when stock ≤ configurable threshold (default 5).
-- FR-41.3: Augment with real-time viewing count from analytics events.
-- FR-41.4: Skip display if Salla theme already renders stock count (theme detection).
-
-**Salla Integration:** Webhook + Twilight PDP hooks *(Confirmed)*.
-**Dependencies:** Webhook handlers from MVP.
+#### Module 41 — Live Stock Urgency Signal
+**Description:** Transparent stock count + viewing count badge.
+**Key FRs:** `product.quantity.low` webhook subscription, threshold-based display, theme overlap detection.
 **Effort:** Small-Medium (3-5 days).
 
-#### Module 42 — Mobile One-Tap Interest (🟠 Phase 2 — overlap with Salla Wishlist)
-**Description:** Anonymous mobile-only interest capture without form. Companion to (not replacement of) Salla Wishlist.
-**Key FRs:**
-- FR-42.1: Display sticky heart icon on PDP mobile only.
-- FR-42.2: Save product ID to cookie + send anonymous event.
-- FR-42.3: On return visit, restore from cookie with reminder banner.
-- FR-42.4: Aggregate "most anonymous-saved products" for Doctor.
-
-**Salla Integration:** Twilight SDK + mobile detection.
-**Dependencies:** Analytics infrastructure (MVP).
+#### Module 42 — Mobile One-Tap Interest
+**Description:** Anonymous mobile interest capture (Salla Wishlist complement).
+**Key FRs:** Sticky heart icon, cookie-based tracking, no PII required.
+**Kill Criterion:** If volume < 2x Salla native Wishlist, remove.
 **Effort:** Small (2-3 days).
-**Kill Criterion:** If incremental volume vs Salla native Wishlist < 2x in pilot, remove from roadmap.
 
-#### Module 43 — Pre-Checkout Confidence Booster (🟠 Phase 2)
-**Description:** Trust signals + WhatsApp CTA on checkout page above "Place Order".
-**Key FRs:**
-- FR-43.1: Inject configurable trust block (shipping, returns, payment security).
-- FR-43.2: Optional last-minute WhatsApp support button.
-- FR-43.3: Track impression/click-to-WhatsApp conversion.
+#### Module 43 — Pre-Checkout Confidence Booster
+**Description:** Trust signals + WhatsApp CTA above "Place Order".
+**Key FRs:** Configurable trust block, WhatsApp support button, conversion tracking.
+**Salla Integration:** Twilight checkout hooks (⚠️ NEEDS VERIFICATION).
+**Effort:** Small (2-3 days).
 
-**Salla Integration:** Twilight checkout hooks (⚠️ **NEEDS VERIFICATION**).
-**Dependencies:** Same checkout verification as Module 37.
-**Effort:** Small (2-3 days, contingent on hooks).
-
-#### Module 44 — Smart Reorder Timing (🟠 Phase 2)
-**Description:** Auto-triggered reorder reminders based on product category timing.
-**Key FRs:**
-- FR-44.1: Define `reorder_category_timings` config table (e.g., serum=60d, perfume=90d).
-- FR-44.2: Daily cron scans completed orders, identifies due reorders.
-- FR-44.3: Send WhatsApp reminder with one-click reorder link.
-- FR-44.4: Track reorder rate per category for tuning.
-
-**Salla Integration:** Orders API + WhatsApp BSP.
-**Dependencies:** WhatsApp infrastructure from MVP.
-**Effort:** Medium (5-7 days).
-
-#### Module 45 — Comparison Shopping Detector (🟠 Phase 2)
-**Description:** Detect customers viewing 3+ similar products, intervene with help.
-**Key FRs:**
-- FR-45.1: Track PDP visits per session in real-time (server-side).
-- FR-45.2: When session shows 3+ PDPs from same category within 10 minutes, trigger widget.
-- FR-45.3: Widget asks: "What's making the decision hard?" with 5 options.
-- FR-45.4: Surface insights in Doctor for category-level optimization.
-
-**Salla Integration:** Products API for category matching.
-**Dependencies:** Session tracking infrastructure (Module 35 Analytics).
+#### Module 45 — Comparison Shopping Detector
+**Description:** Detect 3+ PDPs in same category, intervene with help widget.
+**Key FRs:** Session tracking, category matching, "What's making decision hard?" widget.
 **Effort:** Medium-Large (6-8 days).
 
-#### Module 47 — Customer Bundle Builder (🟠 Phase 2)
-**Description:** Customer selects 3+ products to form custom bundle with auto-discount.
-**Key FRs:**
-- FR-47.1: Configurable rules: min/max products, eligible categories, discount tiers.
-- FR-47.2: Bundle UI with selected items, dynamic pricing, "complete bundle" CTA.
-- FR-47.3: Apply discount as Salla coupon at checkout.
-- FR-47.4: Dashboard: "Top customer-built combinations" to inform official bundles.
-
-**Salla Integration:** Coupons API + Products API.
-**Dependencies:** None.
+#### Module 47 — Customer Bundle Builder
+**Description:** Customer selects 3+ products → custom bundle with auto-discount.
+**Key FRs:** Configurable rules (min/max, eligible categories, tiers), Coupons API for discount.
 **Effort:** Large (8-10 days).
 
-#### Module 50 — Out-of-Stock Substitute Engine (🟠 Phase 2)
-**Description:** Suggest substitutes immediately when product is OOS + capture preference.
-**Key FRs:**
-- FR-50.1: Detect OOS state via stock = 0 check.
-- FR-50.2: Query Products API for similar products (same category, price, attributes).
-- FR-50.3: Display 3 alternatives + "wait for original" option.
-- FR-50.4: Track substitute conversion rate vs wait rate.
+#### Module 48 — Recently Viewed Memory Strip
+**Description:** Sticky strip of recently viewed products + Dashboard tracking.
+**Key FRs:** localStorage cache, view-to-purchase tracking.
+**Effort:** Small-Medium (3-4 days).
 
-**Salla Integration:** Products API for similarity queries.
-**Dependencies:** None.
-**Effort:** Medium (5-6 days).
-
-#### Module 52 — Smart Coupon Discovery (🟠 Phase 2)
-**Description:** Customer-facing coupon search + capture of searched non-existent codes.
-**Key FRs:**
-- FR-52.1: Search bar in cart/checkout: "Looking for a coupon?"
-- FR-52.2: Suggest available eligible coupons based on cart contents.
-- FR-52.3: Capture all searched code names (even non-existent) in `coupon_searches` table.
-- FR-52.4: Dashboard: "Searched codes not in system" → uncovers ghost influencer codes.
-
-**Salla Integration:** Coupons API.
-**Dependencies:** None.
+#### Module 52 — Smart Coupon Discovery
+**Description:** Cart-side coupon search + capture of searched non-existent codes.
+**Key FRs:** Coupons API integration, capture searched-but-not-found codes.
 **Effort:** Medium (4-6 days).
 
-#### Module 53 — Shipping Transparency Calculator (🟠 Phase 2)
+#### Module 53 — Shipping Transparency Calculator
 **Description:** Pre-checkout shipping cost calculator on PDP/Cart.
-**Key FRs:**
-- FR-53.1: City/region dropdown with auto-detect from IP.
-- FR-53.2: Display shipping options + cost in real-time.
-- FR-53.3: "Add X SAR for free shipping" progress bar.
-- FR-53.4: Track shipping objection rate vs original cart abandonment.
+**Key FRs:** City/region detection, real-time shipping calc, "add X for free shipping" progress.
+**Salla Integration:** Shipping API (⚠️ VERIFY AVAILABILITY).
+**Effort:** Medium (5-7 days).
 
-**Salla Integration:** Shipping API (⚠️ **VERIFY AVAILABILITY**).
-**Dependencies:** None.
-**Effort:** Medium (5-7 days, contingent on API).
-
-#### Module 56 — Free Sample / Trial Request (🟠 Phase 2)
+#### Module 56 — Free Sample / Trial Request
 **Description:** Sample request workflow for high-AOV products (>500 SAR).
-**Key FRs:**
-- FR-56.1: Eligible product detection (price threshold + sample-eligible tag).
-- FR-56.2: Sample request form with address + phone.
-- FR-56.3: Create Salla order with sample SKU (custom flow).
-- FR-56.4: Track sample-to-purchase conversion + revenue attribution.
-
-**Salla Integration:** Orders API.
-**Dependencies:** Order management infrastructure.
+**Key FRs:** Eligibility detection, sample order creation, conversion tracking.
 **Effort:** Large (8-10 days, includes operational workflow).
 
 ---
 
-### 27.4 Roadmap Total Effort Estimate
+### 27.12 Expanded MVP Total Effort Estimate
 
 | Phase | Modules | Total Effort |
 |---|---|---|
-| MVP (Module 40 explicit) | 1 | 3-5 days |
-| Phase 1 (38, 39, 46, 48, 49, 51, 54, 55) | 8 | 25-35 days |
-| Phase 2 (37, 41, 42, 43, 44, 45, 47, 50, 52, 53, 56) | 11 | 55-75 days |
-| **Total** | **20** | **~80-110 dev days (~16-22 weeks)** |
+| **MVP Features 5-14** | 10 | 41-51 dev days |
+| Phase 2 Roadmap (remaining 10) | 10 | 51-69 dev days |
+| **Total Roadmap** | 20 | **~92-120 dev days (~18-24 weeks)** |
 
-### 27.5 Critical Path Items
+**With 2 devs (founder + junior) working in parallel:** ~20-22 weeks total MVP timeline.
 
-These can block multiple modules:
-1. **Salla checkout customization verification** — blocks 37, 43 (potentially 53).
-2. **WhatsApp Business API setup** — blocks 44, 49, 51 notifications.
-3. **Salla customer fields availability** — blocks 49 (Birthday).
-4. **Session tracking infrastructure** — blocks 45 (Comparison Detector).
+### 27.13 Critical Path Items
 
-### 27.6 Out of Scope Notes for Roadmap
+Items that can block multiple modules:
+1. **Salla checkout customization verification** — blocks Phase 2 Modules 37, 43, potentially 53.
+2. **WhatsApp Business API setup** — blocks MVP Features 13 (Birthday), 14 (Smart Reorder), 10 (Coming Soon).
+3. **Salla customer.birthday field availability** — affects MVP Feature 13.
+4. **Salla Shipping API availability** — blocks Phase 2 Module 53.
+5. **Session tracking infrastructure** — needed for Phase 2 Module 45.
 
-- Modules listed are **NOT** part of MVP scope. Building prematurely risks MVP timeline.
-- Each module must pass MVP kill criteria before development begins.
-- Re-prioritize roadmap quarterly based on real merchant feedback.
+### 27.14 Risks and Mitigations for Expanded MVP
 
----
-
+| Risk | Mitigation |
+|---|---|
+| Timeline extends beyond 22 weeks | Strict scope discipline. Cut features 12-14 if timeline at risk. |
+| Cash runway insufficient for 6 months | Raise pre-seed or reduce burn aggressively. |
+| Quality suffers from breadth | Mandatory QA week before each feature launch. |
+| Feedback delayed (no MVP feedback until Month 5) | Run paid customer interviews monthly during build. |
+| Engineering bandwidth | Hire junior dev by Month 2 to support founder. |
 ## Document Sign-Off
 
 | Role | Name | Date | Status |
