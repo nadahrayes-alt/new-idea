@@ -44,19 +44,34 @@
 ## 1. Executive Summary
 
 ### Vision
-A Customer Intent Intelligence layer for Salla stores — captures *why* visitors don't buy, *what* they're waiting for, and *what* to fix on each product.
+A Customer Intent Intelligence Platform for Salla stores — captures *why* visitors don't buy, *what* they're waiting for, and *what* to fix on each product. Plus 10 additional integrated features covering search insights, influencer attribution, OOS recovery, and lifecycle marketing.
 
-### MVP Scope
-**4 Features:**
+### MVP Scope — Expanded (14 Features)
+
+**Core 4 Features (Customer Intent loop):**
 1. **Hesitation Capture Widget** (Why) — Exit intent + Product Clarity surveys
 2. **Variant & Price Interest Capture** (Wait) — Multi-dimensional alerts
 3. **Intent Dashboard + Product Doctor Lite** (Fix) — Aggregated insights + rule-based recommendations
 4. **Widget Analytics** (Measure) — Per-widget performance metrics
 
-### Target Launch
-- **Beta:** Day 60 (closed, 3-5 stores)
-- **App Store Submission:** Day 90
-- **Public Launch:** Day 105
+**10 Additional MVP Features (added based on strategic value):**
+5. **PDPL Consent Center** (Module 40) — Customer-facing data management portal *(legally mandatory)*
+6. **Empty Search Capture** (Module 38) — Inventory demand signals from failed searches
+7. **Influencer Attribution** (Module 54) — Per-influencer revenue tracking
+8. **OOS Substitute Engine** (Module 50) — Conversion recovery on out-of-stock
+9. **First-Time vs Returning Recognition** (Module 39) — Pre-tagged intent + personalization
+10. **Coming Soon / Pre-Launch Capture** (Module 51) — Pre-launch demand list
+11. **Cart Sharing & Save Link** (Module 55) — Social commerce with dual reward
+12. **Vertical Discovery Quiz** (Module 46) — Preference profile per vertical
+13. **Birthday/Anniversary Capture** (Module 49) — Lifecycle email/WhatsApp campaigns
+14. **Smart Reorder Timing** (Module 44) — Category-based repeat purchase automation
+
+### Target Launch (Expanded MVP Timeline)
+- **Closed Beta:** Day 90 (was 60)
+- **App Store Submission:** Day 140 (was 90)
+- **Public Launch:** Day 155 (was 105)
+
+**Note:** Timeline expanded from 15 weeks → 20-22 weeks to accommodate 14 features. Founder + Junior dev assumed.
 
 ### Target Market (MVP)
 Saudi Arabian Salla stores in Beauty, Perfumes, Fashion. 2,000-30,000 monthly visits. 50-500 SKUs.
@@ -221,7 +236,9 @@ She taps "دليل المقاسات" and submits in 5 seconds. The merchant gets
 
 ## 6. MVP Scope
 
-### What's In (Build These 4 Features)
+### What's In (Build These 14 Features)
+
+**Core Customer Intent Loop (Features 1-4):**
 
 | # | Feature | Modules Combined | Priority |
 |---|---|---|---|
@@ -230,14 +247,41 @@ She taps "دليل المقاسات" and submits in 5 seconds. The merchant gets
 | 3 | Intent Dashboard + Product Doctor Lite | M32 + M34 | P0 (Core) |
 | 4 | Widget Analytics | M35 | P0 (Infrastructure) |
 
-### What's Out (Defer to Phase 1+)
+**Additional MVP Features (Features 5-14) — see Section 27 for detailed specs:**
+
+| # | Feature | Module | Priority | Effort |
+|---|---|---|---|---|
+| 5 | PDPL Consent Center | M40 | P0 (Legal) | 3-5 days |
+| 6 | Empty Search Capture | M38 | P0 | 2-4 days |
+| 7 | Influencer Attribution | M54 | P0 | 4-6 days |
+| 8 | OOS Substitute Engine | M50 | P0 | 5-6 days |
+| 9 | First-Time vs Returning | M39 | P0 | 4-5 days |
+| 10 | Coming Soon Capture | M51 | P0 | 4-5 days |
+| 11 | Cart Sharing | M55 | P0 | 4-5 days |
+| 12 | Discovery Quiz | M46 | P0 | 5-7 days |
+| 13 | Birthday Capture | M49 | P0 | 2-3 days |
+| 14 | Smart Reorder Timing | M44 | P0 | 5-7 days |
+
+**Total Additional Effort:** 38-53 dev days (≈ 8-11 weeks for solo, 4-5 weeks for 2 devs).
+
+### What's Out (Deferred to Phase 1/2)
 
 | Module | Why Out |
 |---|---|
-| M5 (Ask About Product) | Overlap with Salla Q&A native — needs different positioning |
+| M5 (Ask About Product) | Overlap with Salla Q&A native |
 | M8 Restock-only dimension | Overlap with "أعلمني عند التوفر" native |
-| M22 (Cart Rescue) | Overlap with Salla abandoned cart native |
-| Everything else (Modules 1-3, 6, 9-16, 18-21, 23-31, 33, 36) | Phase 1+ |
+| M22 (Cart Rescue) | Overlap with Salla abandoned cart |
+| M37 (Checkout Hesitation) | Needs Salla checkout verification |
+| M41 (Live Stock Urgency) | Theme overlap concerns |
+| M42 (Mobile One-Tap) | Salla Wishlist overlap |
+| M43 (Pre-Checkout) | Needs Salla checkout verification |
+| M45 (Comparison Detector) | Complex session tracking |
+| M47 (Bundle Builder) | Large effort (8-10 days) |
+| M48 (Recently Viewed) | Theme overlap |
+| M52 (Coupon Discovery) | Needs historical search data |
+| M53 (Shipping Calc) | Needs Shipping API verification |
+| M56 (Sample Request) | Large + operational workflow |
+| Modules 1-3, 6, 9-16, 18-21, 23-31, 33, 36 | Phase 1+ / Sister Products |
 
 ---
 
@@ -2262,14 +2306,14 @@ See section 15 for complete spec. Additional examples:
 
 ---
 
-## 27. Module 40 + Phase 1/2 Roadmap Specifications
+## 27. Detailed Specs — MVP Features 5-14 + Phase 2 Roadmap
 
-This section adds explicit specs for 20 modules referenced in the Analysis library but not covered in MVP Features 1-4:
-- **Module 40** (PDPL Consent Center) — formally MVP-scope requirement
-- **8 Phase 1 modules** (Months 4-9)
-- **11 Phase 2 modules** (Months 10-18)
+> **⚠️ SCOPE CHANGE NOTICE:**
+> Per founder decision, 10 modules originally planned as Phase 1/2 have been **promoted to MVP scope** (Features 5-14). This section contains specs for:
+> - **MVP Features 5-14** (10 modules now in MVP): 40, 38, 39, 44, 46, 49, 50, 51, 54, 55
+> - **Phase 2 Roadmap (10 modules remaining)**: 37, 41, 42, 43, 45, 47, 48, 52, 53, 56
 
-Specs are condensed (Description + Top FRs + Salla Integration + Dependencies + Effort). Full UX/edge case treatment will be added when each module enters active development.
+Specs are condensed (Description + Top FRs + Salla Integration + Dependencies + Effort). Full UX/edge case treatment for MVP features must be added during their development sprints.
 
 ---
 

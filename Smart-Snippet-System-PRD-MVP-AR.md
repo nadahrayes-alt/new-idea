@@ -45,19 +45,34 @@
 ## 1. الملخص التنفيذي
 
 ### الرؤية
-طبقة ذكاء النية للعملاء على متاجر سلة — تلتقط **لماذا** لم يشترِ الزائر، **ماذا** ينتظر، و**ما الذي** يجب إصلاحه على كل منتج.
+**منصة Customer Intent Intelligence** لمتاجر سلة — تلتقط **لماذا** لم يشترِ الزائر، **ماذا** ينتظر، و**ما الذي** يجب إصلاحه. مع 10 ميزات إضافية تغطي insights البحث، influencer attribution، OOS recovery، و lifecycle marketing.
 
-### نطاق الـ MVP
-**أربع ميزات:**
+### نطاق الـ MVP — موسّع (14 Feature)
+
+**النواة (Features 1-4) — حلقة Customer Intent:**
 1. **Hesitation Capture Widget** (لماذا) — استبيانات نية المغادرة + وضوح المنتج
 2. **Variant & Price Interest Capture** (ماذا ينتظر) — تنبيهات متعددة الأبعاد
-3. **Intent Dashboard + Product Doctor Lite** (ما الذي يصلح) — Insights مجمعة + توصيات قائمة على قواعد
+3. **Intent Dashboard + Product Doctor Lite** (ما الذي يصلح) — Insights + توصيات قواعد
 4. **Widget Analytics** (القياس) — مقاييس أداء لكل widget
 
-### الإطلاق المستهدف
-- **Beta مغلقة:** اليوم 60 (3-5 متاجر)
-- **التسليم لسلة:** اليوم 90
-- **الإطلاق العام:** اليوم 105
+**10 ميزات MVP إضافية (مضافة بناءً على القيمة الاستراتيجية):**
+5. **PDPL Consent Center** (Module 40) — بوابة إدارة بيانات العميل *(إلزامي قانونًا)*
+6. **Empty Search Capture** (Module 38) — إشارات طلب inventory من بحث فاشل
+7. **Influencer Attribution** (Module 54) — تتبع revenue per-influencer
+8. **OOS Substitute Engine** (Module 50) — استرداد conversion عند نفاذ المخزون
+9. **First-Time vs Returning Recognition** (Module 39) — pre-tag intent + personalization
+10. **Coming Soon / Pre-Launch Capture** (Module 51) — قائمة طلب pre-launch
+11. **Cart Sharing & Save Link** (Module 55) — social commerce بمكافأة مزدوجة
+12. **Vertical Discovery Quiz** (Module 46) — preference profile لكل vertical
+13. **Birthday/Anniversary Capture** (Module 49) — حملات lifecycle email/WhatsApp
+14. **Smart Reorder Timing** (Module 44) — automation repeat purchase حسب الفئة
+
+### الإطلاق المستهدف (Expanded MVP Timeline)
+- **Closed Beta:** اليوم 90 (كان 60)
+- **التسليم لسلة:** اليوم 140 (كان 90)
+- **الإطلاق العام:** اليوم 155 (كان 105)
+
+**ملاحظة:** Timeline توسع من 15 أسبوع → 20-22 أسبوع لاستيعاب الـ 14 feature. (افتراض: Founder + Junior dev)
 
 ### السوق المستهدف (MVP)
 متاجر سلة سعودية في قطاعات الجمال والعطور والأزياء. 2,000-30,000 زيارة شهريًا. 50-500 منتج.
@@ -217,7 +232,9 @@
 
 ## 6. نطاق الـ MVP
 
-### ما هو داخل النطاق (ابنِ هذه الميزات الأربع)
+### ما هو داخل النطاق (ابنِ هذه الـ 14 Feature)
+
+**النواة — حلقة Customer Intent (Features 1-4):**
 
 | # | الميزة | الـ Modules المدمجة | الأولوية |
 |---|---|---|---|
@@ -226,14 +243,41 @@
 | 3 | Intent Dashboard + Product Doctor Lite | M32 + M34 | P0 (نواة) |
 | 4 | Widget Analytics | M35 | P0 (بنية تحتية) |
 
-### ما هو خارج النطاق (مؤجل للمرحلة 1+)
+**Features 5-14 — راجع Section 27 للـ specs المفصلة:**
+
+| # | الميزة | Module | الأولوية | الجهد |
+|---|---|---|---|---|
+| 5 | PDPL Consent Center | M40 | P0 (قانوني) | 3-5 أيام |
+| 6 | Empty Search Capture | M38 | P0 | 2-4 أيام |
+| 7 | Influencer Attribution | M54 | P0 | 4-6 أيام |
+| 8 | OOS Substitute Engine | M50 | P0 | 5-6 أيام |
+| 9 | First-Time vs Returning | M39 | P0 | 4-5 أيام |
+| 10 | Coming Soon Capture | M51 | P0 | 4-5 أيام |
+| 11 | Cart Sharing | M55 | P0 | 4-5 أيام |
+| 12 | Discovery Quiz | M46 | P0 | 5-7 أيام |
+| 13 | Birthday Capture | M49 | P0 | 2-3 أيام |
+| 14 | Smart Reorder Timing | M44 | P0 | 5-7 أيام |
+
+**إجمالي الجهد الإضافي:** 38-53 يوم تطوير (~8-11 أسبوع لـ solo، 4-5 أسابيع لـ 2 devs).
+
+### ما هو خارج النطاق (مؤجل للمرحلة 1/2)
 
 | Module | السبب |
 |---|---|
-| M5 (Ask About Product) | تداخل مع أسئلة سلة الأصلية — يحتاج positioning مختلف |
-| M8 بُعد Restock فقط | تداخل مع "أعلمني عند التوفر" الأصلية |
-| M22 (Cart Rescue) | تداخل مع السلات المتروكة الأصلية |
-| الباقي (Modules 1-3, 6, 9-16, 18-21, 23-31, 33, 36) | المرحلة 1+ |
+| M5 (Ask About Product) | تداخل مع أسئلة سلة الأصلية |
+| M8 بُعد Restock فقط | تداخل مع "أعلمني عند التوفر" |
+| M22 (Cart Rescue) | تداخل مع السلات المتروكة |
+| M37 (Checkout Hesitation) | يحتاج verification لـ Salla checkout |
+| M41 (Live Stock Urgency) | تداخل themes |
+| M42 (Mobile One-Tap) | تداخل Salla Wishlist |
+| M43 (Pre-Checkout) | يحتاج verification لـ Salla checkout |
+| M45 (Comparison Detector) | session tracking معقد |
+| M47 (Bundle Builder) | جهد كبير (8-10 أيام) |
+| M48 (Recently Viewed) | تداخل themes |
+| M52 (Coupon Discovery) | يحتاج بيانات search تاريخية |
+| M53 (Shipping Calc) | يحتاج verification Shipping API |
+| M56 (Sample Request) | كبير + operational workflow |
+| Modules 1-3, 6, 9-16, 18-21, 23-31, 33, 36 | Phase 1+ / Sister Products |
 
 ---
 
@@ -2246,14 +2290,14 @@ const DEFAULT_REASONS = [
 
 ---
 
-## 27. Module 40 + خارطة Phase 1/2
+## 27. Specs المفصلة — MVP Features 5-14 + خارطة Phase 2
 
-هذا القسم يضيف specs صريحة لـ 20 module مذكورة في Analysis library لكنها غير مغطاة في MVP Features 1-4:
-- **Module 40** (PDPL Consent Center) — متطلب MVP رسمي
-- **8 Phase 1 modules** (الأشهر 4-9)
-- **11 Phase 2 modules** (الأشهر 10-18)
+> **⚠️ تحديث Scope:**
+> بناءً على قرار المؤسس، تم **ترقية 10 modules** من Phase 1/2 إلى MVP scope (Features 5-14). هذا القسم يحتوي specs لـ:
+> - **MVP Features 5-14** (10 modules الآن في MVP): 40, 38, 39, 44, 46, 49, 50, 51, 54, 55
+> - **Phase 2 Roadmap (10 modules متبقية)**: 37, 41, 42, 43, 45, 47, 48, 52, 53, 56
 
-الـ specs مكثفة (وصف + أهم FRs + تكامل سلة + Dependencies + الجهد). UX/edge cases الكاملة تُضاف عند بدء التطوير الفعلي لكل module.
+الـ specs مكثفة. UX/edge cases الكاملة لـ MVP features يجب أن تُضاف خلال sprints التطوير.
 
 ---
 

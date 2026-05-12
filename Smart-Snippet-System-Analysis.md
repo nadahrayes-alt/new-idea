@@ -1263,7 +1263,7 @@ Top objections:
 
 ---
 
-#### Module 38 — Empty Search Capture (🟡 Phase 1)
+#### Module 38 — Empty Search Capture (🟢 MVP)
 **🎯 الوظيفة:** التقاط ما يبحث عنه العميل ولا يجده — **إشارة طلب مباشرة على inventory مفقود**
 **📌 متى يظهر:** صفحة "لا توجد نتائج" بعد بحث المتجر
 **🔧 الموقع التقني:** كشف empty search state عبر page hooks
@@ -1291,7 +1291,7 @@ Top objections:
 
 ---
 
-#### Module 39 — First-Time vs Returning Recognition (🟡 Phase 1)
+#### Module 39 — First-Time vs Returning Recognition (🟢 MVP)
 **🎯 الوظيفة:** ترحيب مختلف للزوار الجدد vs العائدين، مع pre-tag للنية من أول لحظة
 **📌 متى يظهر:** Top of page عند الزيارة (مرة واحدة لكل visitor)
 **🔧 الموقع التقني:** ✅ Cookie + Salla customer login state — Twilight SDK يعطي customer info *(Confirmed)*
@@ -1447,7 +1447,7 @@ Top objections:
 
 ---
 
-#### Module 44 — Smart Reorder Timing (🟠 Phase 2)
+#### Module 44 — Smart Reorder Timing (🟢 MVP)
 **🎯 الوظيفة:** تذكير ذكي للعملاء بإعادة الطلب بناءً على **نوع المنتج وتاريخ الطلب الأخير**
 **📌 الفرق عن Module 24 (Returning Customer):** Module 24 يرحّب. هذا proactive — يبادر بإشعار قبل ما يفكر العميل.
 **📌 متى يظهر:** WhatsApp/Email بعد عدد أيام محسوب لكل category منتج
@@ -1627,7 +1627,7 @@ Top objections:
 
 ---
 
-#### Module 49 — Birthday/Anniversary Capture (🟡 Phase 1)
+#### Module 49 — Birthday/Anniversary Capture (🟢 MVP)
 **🎯 الوظيفة:** التقاط تواريخ شخصية للحملات المخصصة (عيد ميلاد، ذكرى زواج، تخرج)
 **📌 متى يظهر:** Post-checkout أو في customer profile area
 **🔧 الموقع التقني:** يحتاج تحقق من Salla customer fields — **Needs verification**
@@ -1658,7 +1658,7 @@ Top objections:
 
 ---
 
-#### Module 50 — Out-of-Stock Substitute Engine (🟠 Phase 2)
+#### Module 50 — Out-of-Stock Substitute Engine (🟢 MVP)
 **🎯 الوظيفة:** عند OOS، يقترح بدائل مشابهة فورًا + يلتقط تفضيل العميل (بديل أم انتظار)
 **📌 الفرق عن Module 8 (Restock alerts):** Module 8 يحفظ الانتظار. هذا يحاول conversion immediate.
 **📌 متى يظهر:** PDP لمنتج OOS
@@ -1687,7 +1687,7 @@ Top objections:
 
 ---
 
-#### Module 51 — Coming Soon / Pre-Launch Capture (🟡 Phase 1)
+#### Module 51 — Coming Soon / Pre-Launch Capture (🟢 MVP)
 **🎯 الوظيفة:** التقاط الاهتمام قبل إطلاق منتج — يبني anticipation + قائمة launch جاهزة
 **📌 متى يظهر:** صفحة منتج "غير منشور" أو category مخصصة
 **🔧 الموقع التقني:** Product status + capture form
@@ -1768,7 +1768,7 @@ Top objections:
 
 ---
 
-#### Module 54 — Influencer Code Capture & Attribution (🟡 Phase 1)
+#### Module 54 — Influencer Code Capture Module 54 — Influencer Code Capture & Attribution (🟡 Phase 1) Attribution (🟢 MVP)
 **🎯 الوظيفة:** يلتقط دخول العميل من influencer (UTM أو code) + يربط الـ purchase بـ influencer specific
 **📌 الفرق عن Module 23 (Campaign Landing):** Module 23 generic UTM. هذا influencer-specific مع per-person attribution.
 **📌 متى يظهر:** أول زيارة من UTM إعلامي + auto-apply في checkout
@@ -1796,7 +1796,7 @@ Top objections:
 
 ---
 
-#### Module 55 — Cart Sharing & Save Link (🟡 Phase 1)
+#### Module 55 — Cart Sharing Module 55 — Cart Sharing & Save Link (🟡 Phase 1) Save Link (🟢 MVP)
 **🎯 الوظيفة:** يولّد link قابل للمشاركة على WhatsApp/إيميل — يفعّل social shopping
 **📌 الفرق عن Module 22 (Cart Rescue):** Module 22 ينقذ من exit. هذا يفعّل social shopping intentionally.
 **📌 متى يظهر:** زر في Cart "💾 احفظ أو شاركي السلة"
@@ -1864,17 +1864,46 @@ Top objections:
 
 ---
 
-### 📋 الملخص الكامل — توزيع كل الـ 56 Snippet (محدث بعد التحقق Live من سلة)
+### 📋 الملخص الكامل — توزيع كل الـ 56 Snippet (Expanded MVP — 14 Features)
 
 | Scope | عدد | الـ Snippets |
 |---|---|---|
-| 🟢 Scope 0 — MVP | 9 | 4, 17, 7, 8, 32, 34, 35 + **40** (PDPL Center إلزامي) + 5 موقوف |
-| 🟡 Scope 1 — Phase 1 | 19 | 5, 8 (part), 22, 9, 33, 12, 19, 23, 10, 26, 31 + **38, 39, 46** (batch 1) + **48, 49, 51, 54, 55** (batch 2) |
-| 🟠 Scope 2 — Phase 2 | 19 | 3, 24, 1, 2, 11, 20, 13, 18 + **37, 41, 42, 43, 44, 45** (batch 1) + **47, 50, 52, 53, 56** (batch 2) |
+| 🟢 Scope 0 — **Expanded MVP (14 features)** | 18 | 4, 17, 7, 8, 32, 34, 35 + **40, 38, 39, 44, 46, 49, 50, 51, 54, 55** (10 جديدة) + 5 موقوف |
+| 🟡 Scope 1 — Phase 1 | 11 | 5, 8 (part), 22, 9, 33, 12, 19, 23, 10, 26, 31 |
+| 🟠 Scope 2 — Phase 2 | 13 | 3, 24, 1, 2, 11, 20, 13, 18 + **37, 41, 42, 43, 45, 47, 48, 52, 53, 56** |
 | 🔵 Scope 3 — Phase 3 | 3 | 36, 30, 21 |
 | ⚫ Scope 4 — Sister Products | 8 | 6, 14, 15, 16, 25, 27, 28, 29 |
 
-**المجموع: 56 snippet (36 أصلي + 20 إضافي)، 0 محذوف، كل واحد له مكان استراتيجي.**
+**المجموع: 56 snippet — MVP الآن يحتوي 14 feature (4 أصلية + 10 جديدة).**
+
+### 🚀 Expanded MVP — الـ 14 Feature
+
+| # | Module | الـ Story |
+|---|---|---|
+| 1 | M4 + M17 — Hesitation Capture | "اعرف ليش ما اشترى" |
+| 2 | M7 + M8 — Variant & Price Interest | "اعرف شو ينتظر" |
+| 3 | M32 + M34 — Intent Dashboard + Doctor | "اعرف شو تصلح" |
+| 4 | M35 — Widget Analytics | "اقس شو يشتغل" |
+| 5 | **M40** — PDPL Consent Center | "بياناتك محمية" *(إلزامي قانونًا)* |
+| 6 | **M38** — Empty Search Capture | "اكتشف الـ inventory المفقود" |
+| 7 | **M54** — Influencer Attribution | "اعرف ROI كل influencer" |
+| 8 | **M50** — OOS Substitute Engine | "حوّل OOS لمبيعات" |
+| 9 | **M39** — First-Time Recognition | "خبّر العميل من ثانية الأولى" |
+| 10 | **M51** — Coming Soon Capture | "ابني hype قبل الإطلاق" |
+| 11 | **M55** — Cart Sharing | "سلتك يمكن مشاركتها" |
+| 12 | **M46** — Discovery Quiz | "اكتشف بشرتك/ستايلك" |
+| 13 | **M49** — Birthday Campaigns | "نحتفل بكِ" |
+| 14 | **M44** — Smart Reorder | "نذكرك تطلبيه ثاني" |
+
+### ⏱️ Timeline الجديد (Expanded MVP)
+
+| Team Size | Timeline | App Store Submission |
+|---|---|---|
+| Solo founder dev | 25-27 أسبوع | ~الأسبوع 25 |
+| **Founder + Junior dev** | **20-22 أسبوع** | ~الأسبوع 20 |
+| Founder + 2 devs | 18-20 أسبوع | ~الأسبوع 18 |
+
+**مقارنة بالأصلي:** 15 أسبوع → 20-22 أسبوع (founder + junior).
 
 ### 🆕 الـ 10 الإضافية الأولى (37-46) — Quick Reference
 

@@ -39,7 +39,13 @@
 ## 1. Executive Summary
 
 ### الفرصة في سطر واحد
-طبقة **Customer Intent Intelligence** لمتاجر سلة — تجيب على السؤال الذي لا يجيب عليه أحد: **"ليش الزوار ما اشتروا؟"**
+**منصة Customer Intent Intelligence** لمتاجر سلة — تجيب على السؤال الذي لا يجيب عليه أحد: **"ليش الزوار ما اشتروا؟"** + 10 ميزات تكميلية (Empty Search Insights، Influencer Attribution، OOS Recovery، Discovery Quiz، Lifecycle Campaigns).
+
+### تحديث Scope الـ MVP
+**MVP الآن يحتوي 14 feature بدلاً من 4** (قرار توسيع scope). Timeline توسعت من 15 → 20-22 أسبوع. هذا يحتاج:
+- 5-6 أشهر runway (vs 3.5 سابقًا)
+- ~150K SAR capital إضافي
+- 2 devs (founder + junior)
 
 ### الأرقام الأساسية
 
