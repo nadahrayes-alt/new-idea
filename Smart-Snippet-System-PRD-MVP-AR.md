@@ -3493,67 +3493,1092 @@ interface ReorderReminder {
 
 ---
 
-### 27.11 Phase 2 Roadmap (10 Modules متبقية)
+### 27.11 Module 37 — Checkout Hesitation Capture (🟠 Phase 2)
 
-هذه الـ 10 modules تبقى في Phase 2 roadmap (الأشهر 10-18). specs مكثفة.
+#### الوصف
+يلتقط أسباب abandonment على صفحة checkout بالذات. مختلف عن hesitation على PDP (Feature 1) لأن checkout abandonment له أسباب مختلفة (مفاجأة تكلفة الشحن، مشاكل طريقة الدفع، مخاوف الأمان، إجمالي غير متوقع). العملاء الذين يصلون checkout high-intent، ففهم لماذا ينسحبون = revenue insight حرج.
 
-#### Module 37 — Checkout Hesitation Capture
-**الوصف:** التقاط أسباب abandonment على checkout بالذات.
-**أهم الـ FRs:** Exit intent على checkout، 6 خيارات أسباب، تحليلات منفصلة عن PDP.
-**تكامل سلة:** Twilight checkout hooks (⚠️ يحتاج verification).
-**الجهد:** متوسط-كبير (5-7 أيام).
+#### User Flow
 
-#### Module 41 — Live Stock Urgency Signal
-**الوصف:** عداد stock شفاف + viewing count.
-**أهم الـ FRs:** webhook subscription، عرض based on threshold، theme overlap detection.
-**الجهد:** صغير-متوسط (3-5 أيام).
+```
+[العميل يصل صفحة checkout]
+     ↓
+[يملأ delivery info، يرى الإجمالي النهائي]
+     ↓
+[Smart Snippet يكشف exit intent أو back navigation]
+     ↓
+[Modal خفيف: "ما يمنعك من إكمال الطلب؟"]
+     ↓
+[6 خيارات أسباب checkout-specific]
+     ↓
+[Submit → تخزين منفصل عن PDP hesitations]
+     ↓
+[Doctor يطلق قواعد checkout-specific]
+```
 
-#### Module 42 — Mobile One-Tap Interest
-**الوصف:** anonymous mobile interest capture (مكمل Salla Wishlist).
-**أهم الـ FRs:** sticky heart، cookie tracking، بدون PII.
-**Kill Criterion:** إذا volume < 2x Salla Wishlist، حذف.
-**الجهد:** صغير (2-3 أيام).
+#### المتطلبات الوظيفية
 
-#### Module 43 — Pre-Checkout Confidence Booster
-**الوصف:** Trust signals + WhatsApp CTA فوق "Place Order".
-**أهم الـ FRs:** trust block قابل للضبط، WhatsApp button، conversion tracking.
-**تكامل سلة:** Twilight checkout hooks (⚠️ يحتاج verification).
-**الجهد:** صغير (2-3 أيام).
+- **FR-37.1** كشف exit intent على checkout: mouseleave + scroll-up + idle threshold.
+- **FR-37.2** عرض 6 أسباب checkout-specific: تكلفة الشحن، مشكلة الدفع، الأمان، الإجمالي غير متوقع، طريقة دفع مفقودة، سأعود لاحقًا.
+- **FR-37.3** السماح بـ free text (max 500 chars).
+- **FR-37.4** تخزين في `checkout_hesitations` table (منفصل عن `hesitation_submissions`).
+- **FR-37.5** التقاط: cart_total، payment_method_selected، shipping_method_selected، delivery_country.
+- **FR-37.6** Doctor rule: لو سبب الشحن > 5/أسبوع، اقترح مراجعة free shipping threshold.
+- **FR-37.7** Dashboard: Checkout abandonment funnel + أهم الأسباب.
+- **FR-37.8** A/B test الـ trigger timing: فوري vs بعد 30s idle.
+- **FR-37.9** اختياري: عرض last-chance discount للـ carts عالية القيمة (>500 ر.س).
+- **FR-37.10** Mobile: bottom-sheet modal (أقل تطفلًا).
 
-#### Module 45 — Comparison Shopping Detector
-**الوصف:** كشف 3+ PDPs نفس فئة، تدخل بـ widget.
-**أهم الـ FRs:** session tracking، category matching، widget مع 5 خيارات.
-**الجهد:** متوسط-كبير (6-8 أيام).
+#### UX Requirements
 
-#### Module 47 — Customer Bundle Builder
-**الوصف:** العميل يختار 3+ products → custom bundle مع auto-discount.
-**أهم الـ FRs:** rules قابلة للضبط، Coupons API.
-**الجهد:** كبير (8-10 أيام).
+**التصميم البصري:**
+- أقل عدوانية من PDP hesitation (العميل استثمر وقت)
+- نبرة متعاطفة: "نقدر وقتك — أخبرنا ليش"
+- خيارات quick-tap + skip متاح
 
-#### Module 48 — Recently Viewed Memory Strip
-**الوصف:** Sticky strip للمنتجات المشاهدة + Dashboard tracking.
-**أهم الـ FRs:** localStorage cache، view-to-purchase tracking.
-**الجهد:** صغير-متوسط (3-4 أيام).
+**أسلوب Modal:**
+- ينزلق من الأسفل على الجوال
+- مركزي على Desktop، max-width 500px
+- إشارات ثقة: "ردك يبقى خاص"
 
-#### Module 52 — Smart Coupon Discovery
-**الوصف:** بحث coupon + التقاط codes غير موجودة.
-**أهم الـ FRs:** Coupons API، capture searched-but-not-found.
-**الجهد:** متوسط (4-6 أيام).
+#### Configuration
 
-#### Module 53 — Shipping Transparency Calculator
-**الوصف:** حاسبة shipping cost قبل checkout.
-**أهم الـ FRs:** city detection، real-time calc، "add X for free shipping".
-**تكامل سلة:** Shipping API (⚠️ يحتاج verification).
-**الجهد:** متوسط (5-7 أيام).
+```typescript
+interface CheckoutHesitationConfig {
+  enabled: boolean;
+  triggerMode: 'exit_intent' | 'idle_timeout' | 'back_navigation';
+  idleThresholdSeconds: number;
+  reasons: { id: string; label_ar: string; label_en: string; enabled: boolean; }[];
+  showLastChanceOffer: boolean;
+  lastChanceOfferThreshold: number;
+  lastChanceOfferCouponCode: string;
+}
+```
 
-#### Module 56 — Free Sample / Trial Request
-**الوصف:** Sample workflow للمنتجات high-AOV (>500 ر.س).
-**أهم الـ FRs:** eligibility detection، sample order creation، conversion tracking.
-**الجهد:** كبير (8-10 أيام).
+#### Data Captured
+
+```typescript
+interface CheckoutHesitation {
+  id: string;
+  merchant_id: string;
+  trigger_mode: string;
+  reason_id?: string;
+  free_text?: string;
+  cart_total: number;
+  cart_items_count: number;
+  payment_method_selected?: string;
+  shipping_method_selected?: string;
+  delivery_country: string;
+  delivery_city: string;
+  customer_id?: string;
+  session_id: string;
+  time_on_checkout_seconds: number;
+  was_lastchance_offered: boolean;
+  was_lastchance_accepted: boolean;
+  created_at: timestamp;
+}
+```
+
+#### Edge Cases
+
+| الحالة | السلوك |
+|---|---|
+| العميل أكمل بعد رؤية modal | mark as "recovered" |
+| محاولات checkout متعددة في جلسة | aggregate، لا تكرر modal |
+| العميل أغلق modal | تتبع dismissal event |
+| Payment method فعليًا معطوب | surface في Doctor كـ critical |
+| العميل على بطء شبكة | لا trigger (تجنب friction) |
+| Salla checkout customization غير متاح | fall back لـ cart-page exit intent |
+| Last-chance discount استُخدم | تخطي العرض |
+| Bot/scraper على checkout | تخطي modal |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Bottom sheet، swipe-to-dismiss، large tap targets
+- **A11y:** Modal focus trap، ARIA labels، keyboard navigation
+- **Salla Integration:** Twilight checkout hooks (⚠️ **يحتاج verification**)
+
+#### الجهد المقدر
+متوسط-كبير: **5-7 أيام** (يعتمد على Salla checkout hooks)
 
 ---
 
-### 27.12 ملخص الجهد الإجمالي (Expanded MVP)
+### 27.12 Module 41 — Live Stock Urgency Signal (🟠 Phase 2)
+
+#### الوصف
+يعرض stock count شفاف + viewing count badge على PDP لما المخزون منخفض فعليًا. عكس fake urgency widgets، يستخدم بيانات حقيقية من webhook `product.quantity.low` وأحداث analytics. يبني ثقة عبر الشفافية مع خلق scarcity شرعي.
+
+#### User Flow
+
+```
+[Salla webhook: product.quantity.low يطلق]
+     ↓
+[Smart Snippet يكاش: product X له Y stock]
+     ↓
+[العميل يزور PDP لـ X]
+     ↓
+[يفحص: stock < threshold AND theme لا يعرض stock]
+     ↓
+[عرض badge: "⚠️ بقي 3 قطع + 12 يشاهد الآن"]
+     ↓
+[viewing count يحدث real-time]
+     ↓
+[تتبع: badge_view، badge_impression، purchase_attribution]
+```
+
+#### المتطلبات الوظيفية
+
+- **FR-41.1** الاشتراك في Salla `product.quantity.low` webhook.
+- **FR-41.2** كاش low-stock products في Redis مع TTL = 1 ساعة.
+- **FR-41.3** عند PDP load: فحص إذا المنتج في low-stock cache.
+- **FR-41.4** عرض urgency badge فقط إذا stock_qty ≤ threshold (default 5).
+- **FR-41.5** Theme detection: لو Salla theme يعرض stock count، تخطي badge.
+- **FR-41.6** Real-time viewing count: aggregate `widget_viewed` events للمنتج في آخر 5 دقائق.
+- **FR-41.7** Badge يحدث كل 30 ثانية عبر polling خفيف أو WebSocket.
+- **FR-41.8** تتبع badge_impression، badge_dismissed events.
+- **FR-41.9** A/B test impact: badge shown vs hidden control.
+- **FR-41.10** Dashboard: products مع active urgency badges + conversion lift.
+
+#### UX Requirements
+
+**أسلوب Badge:**
+- Inline مع PDP (مش popup)
+- amber/orange subtle (تحذير، ليس panic)
+- أيقونة واضحة: ⚠️ أو ⏰
+- نص صادق: "X قطع متبقية"
+- عدد المشاهدين الحي: "Y يشاهد الآن"
+
+**التصميم البصري:**
+- يرث Salla theme typography
+- 8px border-radius، ظل خفيف
+- count change animated
+
+#### Configuration
+
+```typescript
+interface LiveStockUrgencyConfig {
+  enabled: boolean;
+  stockThreshold: number;
+  showViewingCount: boolean;
+  viewingCountWindowMinutes: number;
+  themeDetectionEnabled: boolean;
+  badgeStyle: 'subtle' | 'prominent';
+  updateIntervalSeconds: number;
+  badgeText_ar: string;
+  badgeText_en: string;
+}
+```
+
+#### Data Captured
+
+```typescript
+interface UrgencyBadgeEvent {
+  id: string;
+  merchant_id: string;
+  product_id: string;
+  stock_at_view: number;
+  viewers_count: number;
+  badge_shown: boolean;
+  customer_id?: string;
+  session_id: string;
+  resulted_in_purchase?: boolean;
+  created_at: timestamp;
+}
+```
+
+#### Edge Cases
+
+| الحالة | السلوك |
+|---|---|
+| Stock فعلًا 0 | إخفاء urgency، عرض OOS substitute (Module 50) |
+| Theme يعرض "بقي X" | تخطي badge لتجنب التكرار |
+| Webhook متأخر (بيانات قديمة) | refresh من Salla API عند PDP load |
+| Stock زاد بعد low signal | تحديث cache، إخفاء badge |
+| Bot يضخم viewing count | فلترة bot user agents |
+| العميل لديه ad blocker | badge قد لا يحمل، fallback |
+| Variants مختلفة بـ stock مختلف | badge per variant إن أمكن |
+| Webhook فشل | fallback لـ periodic Salla API check |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Badge أصغر، typography محسّن للجوال
+- **A11y:** ARIA label وصفي، announce stock + viewers
+- **Salla Integration:** webhook (مؤكد)، Products API، Twilight PDP hooks
+
+#### الجهد المقدر
+صغير-متوسط: **3-5 أيام**
+
+---
+
+### 27.13 Module 42 — Mobile One-Tap Interest (🟠 Phase 2)
+
+#### الوصف
+Anonymous mobile-only interest capture بدون نموذج. Sticky heart icon على PDP يتيح one-tap save بدون جوال أو email أو login. Cookie-based tracking. **مكمل لـ Salla Wishlist** (ليس بديل) — يلتقط volume أعلى لأنه بدون login friction. Kill criterion: إذا volume < 2x Salla Wishlist بعد pilot، حذف.
+
+#### User Flow
+
+```
+[العميل يزور PDP على الجوال]
+     ↓
+[يرى Salla Add-to-Cart + heart icon (sticky bottom-right)]
+     ↓
+[نقرة واحدة → cookie يخزن: { product_id, timestamp }]
+     ↓
+[Heart يمتلئ بالأحمر — feedback بصري]
+     ↓
+[العميل يكمل تصفح أو يغادر]
+     ↓
+[زيارة لاحقة: heart pre-filled للمنتجات المحفوظة]
+     ↓
+[Dashboard: anonymous saves trending → demand signal لـ Doctor]
+```
+
+#### المتطلبات الوظيفية
+
+- **FR-42.1** Sticky heart icon على PDP (mobile فقط via user-agent).
+- **FR-42.2** نقرة واحدة toggle save state.
+- **FR-42.3** تخزين في `ss_saved_products` cookie (max 50، FIFO).
+- **FR-42.4** إرسال anonymous event: `mobile_save` مع product_id، session_id.
+- **FR-42.5** لا PII مطلوب (anonymous-first).
+- **FR-42.6** عند return visit (نفس المتصفح): heart pre-filled.
+- **FR-42.7** Dashboard: "most anonymous-saved products".
+- **FR-42.8** Doctor signal: high save-to-purchase delta = high-intent blocked.
+- **FR-42.9** Position بحذر لتجنب conflict مع Salla theme favorites.
+- **FR-42.10** Pilot kill: إذا volume < 2x Salla Wishlist في شهر، deprecate.
+
+#### UX Requirements
+
+**Heart Icon:**
+- 48px tap target
+- Position: bottom-right corner، sticky
+- Animations: fill عند tap، pulse خفيف
+- Inactive: outline heart
+- Active: solid red + "تم الحفظ" tooltip (1.5s)
+
+**Subtle:**
+- لا badges، لا notification dots
+
+#### Configuration
+
+```typescript
+interface MobileOneTapConfig {
+  enabled: boolean;
+  position: 'bottom-right' | 'bottom-left' | 'sticky-top';
+  iconStyle: 'heart' | 'bookmark' | 'plus';
+  maxSavedPerCookie: number;
+  showSalleWishlistAlongside: boolean;
+  pilotKillThresholdMonths: number;
+  pilotMinVolumeMultiplier: number;
+}
+```
+
+#### Data Captured
+
+```typescript
+interface MobileSaveEvent {
+  id: string;
+  merchant_id: string;
+  product_id: string;
+  session_id: string;
+  device_type: 'mobile' | 'tablet';
+  action: 'save' | 'unsave';
+  is_returning_visitor: boolean;
+  saved_count_in_cookie: number;
+  created_at: timestamp;
+}
+```
+
+#### Edge Cases
+
+| الحالة | السلوك |
+|---|---|
+| User على desktop | لا تعرض icon (mobile-only) |
+| Cookie فُرّغ | العميل يخسر saves (مقبول لـ anonymous) |
+| 50+ saves | FIFO eviction مع إشعار |
+| Salla theme فيه favorites | position لتجنب overlap |
+| العميل يستخدم Salla Wishlist | كلاهما tracked منفصل |
+| Ad blocker يحظر cookie | feature يتدهور بصمت |
+| العميل سجل دخول بعد saves | لا auto-merge لـ Wishlist (نية مختلفة) |
+| Pilot فشل | إزالة via admin toggle |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Optimized لـ thumb reach
+- **A11y:** ARIA label وصفي
+- **Salla Integration:** Twilight SDK، theme detection. Salla Wishlist يبقى الأساسي.
+
+#### الجهد المقدر
+صغير: **2-3 أيام** (مع kill criterion review في Month 1)
+
+---
+
+### 27.14 Module 43 — Pre-Checkout Confidence Booster (🟠 Phase 2)
+
+#### الوصف
+Trust signals + WhatsApp CTA يُحقن فوق "Place Order" على checkout. مصمم لتقليل التردد في اللحظة الأخيرة في متاجر luxury/high-AOV حيث كل 0.5% CVR = آلاف SAR شهريًا. Trust block قابل للضبط (شحن، إرجاع، أمان، دعم).
+
+#### User Flow
+
+```
+[العميل يملأ checkout form]
+     ↓
+[يصل خطوة الدفع، على وشك "Place Order"]
+     ↓
+[Pre-Checkout block فوق الزر:
+  - Trust signals
+  - زر WhatsApp: "تواصل قبل الدفع؟"
+]
+     ↓
+[العميل إما:
+  A) ينقر Place Order → conversion
+  B) ينقر WhatsApp → محادثة مع التاجر
+  C) يغادر → tracked
+]
+```
+
+#### المتطلبات الوظيفية
+
+- **FR-43.1** حقن trust block قابل للضبط فوق CTA الأساسي.
+- **FR-43.2** Trust signals: تذكير شحن مجاني، سياسة إرجاع، دفع آمن، توفر دعم.
+- **FR-43.3** WhatsApp button اختياري: deep link مع رسالة معبأة.
+- **FR-43.4** الرسالة المعبأة: "أنا على وشك إكمال طلب — لدي سؤال أخير".
+- **FR-43.5** تتبع impression، click WhatsApp، conversion attribution.
+- **FR-43.6** عرض فقط على checkout (ليس cart، ليس PDP).
+- **FR-43.7** قابل للضبط: أي signals تظهر، نصوص مخصصة.
+- **FR-43.8** Mobile-optimized: stacks vertically، WhatsApp prominent.
+- **FR-43.9** A/B test: trust block shown vs hidden.
+- **FR-43.10** Dashboard: trust block conversion lift، WhatsApp conversations.
+
+#### UX Requirements
+
+**Trust Block:**
+- خلفية subtle (رمادي/أزرق خفيف)
+- icons + نص قصير (✓ شحن مجاني فوق 200)
+- 3-5 signals max
+
+**WhatsApp Button:**
+- واضح، prominent
+- لون أخضر/branded
+- "تواصل بسرعة" tagline
+
+#### Configuration
+
+```typescript
+interface PreCheckoutConfidenceConfig {
+  enabled: boolean;
+  trustSignals: { id: string; icon: string; text_ar: string; text_en: string; enabled: boolean; }[];
+  whatsAppEnabled: boolean;
+  whatsAppNumber: string;
+  whatsAppMessage_ar: string;
+  whatsAppMessage_en: string;
+  position: 'above_cta' | 'below_cta' | 'sidebar';
+}
+```
+
+#### Data Captured
+
+```typescript
+interface PreCheckoutEvent {
+  id: string;
+  merchant_id: string;
+  session_id: string;
+  customer_id?: string;
+  cart_total: number;
+  trust_block_shown: boolean;
+  whatsapp_clicked: boolean;
+  resulted_in_purchase: boolean;
+  resulted_in_whatsapp_conversation: boolean;
+  created_at: timestamp;
+}
+```
+
+#### Edge Cases
+
+| الحالة | السلوك |
+|---|---|
+| التاجر بدون WhatsApp Business | إخفاء WhatsApp، عرض trust signals فقط |
+| العميل نقر WhatsApp ثم أكمل الطلب | tracked كـ "WhatsApp-assisted conversion" |
+| Trust block لا يلائم mobile | collapse signals أقل أهمية |
+| Salla checkout مقيد | حقن فوق cart total بدلًا |
+| Ad blocker | block لا يحمل، لا تأثير على checkout |
+| رسالة WhatsApp pre-filled محظورة | fallback لرسالة عامة |
+| أجهزة checkout متعددة | tracked unique per device |
+| رقم WhatsApp تغير | auto-update من إعدادات التاجر |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Stacked، WhatsApp full-width
+- **A11y:** Trust signals كـ ARIA list
+- **Salla Integration:** Twilight checkout hooks (⚠️ **يحتاج verification**)، WhatsApp BSP
+
+#### الجهد المقدر
+صغير: **2-3 أيام** (يعتمد على Salla checkout hooks)
+
+---
+
+### 27.15 Module 45 — Comparison Shopping Detector (🟠 Phase 2)
+
+#### الوصف
+يكشف العملاء الذين يقارنون منتجات (3+ products نفس فئة خلال 10 دقائق) ويتدخل بـ help widget: "ما الذي يصعب القرار؟". يكشف decision-friction reasons (سعر، attributes، style، إلخ) ويغذي Doctor لـ category-level optimization.
+
+#### User Flow
+
+```
+[العميل يرى Product A]
+     ↓
+[يرجع، يرى Product B (نفس فئة)]
+     ↓
+[يرى Product C (نفس فئة، خلال 10 دقائق)]
+     ↓
+[Smart Snippet يكشف comparison pattern]
+     ↓
+[Widget يظهر: "محتارة بين هذه المنتجات؟"]
+     ↓
+[5 خيارات: السعر، المقاس/الفت، الجودة، الستايل، المناسبة]
+     ↓
+[Submit → تخزين في comparison_signals]
+     ↓
+[Doctor: category-level friction insights]
+```
+
+#### المتطلبات الوظيفية
+
+- **FR-45.1** تتبع PDP visits لكل session real-time (server-side).
+- **FR-45.2** كشف comparison pattern: 3+ PDPs نفس فئة خلال 10 دقائق.
+- **FR-45.3** الفئات تطابق عبر Salla Products API (category_id).
+- **FR-45.4** Trigger widget على PDP 4 (بعد كشف).
+- **FR-45.5** Widget يسأل: "ما الذي يصعب القرار؟" مع 5 خيارات.
+- **FR-45.6** الخيارات: السعر، المقاس/الفت، الجودة، الستايل، المناسبة (قابلة للضبط).
+- **FR-45.7** تخزين في `comparison_signals` مع: session_id، category_id، products_viewed[]، friction_reason.
+- **FR-45.8** Dashboard: نسبة comparison shoppers، أهم friction reasons per category.
+- **FR-45.9** Doctor rule: لو "السعر" > 30% friction → اقترح price-comparison snippet.
+- **FR-45.10** Cooldown: لا تعرض widget أكثر من مرة في جلسة.
+
+#### UX Requirements
+
+**أسلوب Widget:**
+- non-intrusive bottom-right pop-in (ليس modal)
+- نبرة ودودة: "محتارة بين هذه؟ ساعدينا نساعدك"
+- 5 خيارات tap كبيرة + skip
+- Dismissible
+
+**التصميم البصري:**
+- accent purple/blue (research mode)
+- slide-in من الزاوية
+- Skip ظاهر
+
+#### Configuration
+
+```typescript
+interface ComparisonDetectorConfig {
+  enabled: boolean;
+  detectionThreshold: number;
+  detectionWindowMinutes: number;
+  categoriesMustMatch: boolean;
+  cooldownMinutes: number;
+  frictionOptions: { id: string; label_ar: string; label_en: string; enabled: boolean; }[];
+  vertical?: 'fashion' | 'beauty' | 'electronics';
+}
+```
+
+#### Data Captured
+
+```typescript
+interface ComparisonSignal {
+  id: string;
+  merchant_id: string;
+  session_id: string;
+  customer_id?: string;
+  category_id: string;
+  products_viewed: string[];
+  viewing_duration_seconds: number;
+  friction_reason?: string;
+  free_text?: string;
+  resulted_in_purchase?: string;
+  abandoned: boolean;
+  created_at: timestamp;
+}
+```
+
+#### Edge Cases
+
+| الحالة | السلوك |
+|---|---|
+| العميل يشاهد فئات متعددة (ليس واحدة) | لا trigger |
+| نفس المنتج 3 مرات | لا comparison |
+| 10-min window edge | tolerance ±1 دقيقة |
+| العميل أغلق widget | cooldown، لا عرض في جلسة |
+| Bot crawler يشاهد كثير | فلترة via bot detection |
+| Category data غير متاح | fallback لـ product tags |
+| Session انتهت بين views | reset comparison tracking |
+| العميل اشترى بعد widget | track friction_reason + outcome |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Bottom sheet بدل corner pop-in
+- **A11y:** Options keyboard navigable
+- **Salla Integration:** Products API للفئات، session tracking (Module 35)
+
+#### الجهد المقدر
+متوسط-كبير: **6-8 أيام**
+
+---
+
+### 27.16 Module 47 — Customer Bundle Builder (🟠 Phase 2)
+
+#### الوصف
+العميل يختار 3+ منتجات لتكوين bundle مخصص مع auto-discount. يختلف عن merchant-defined bundles بأن العميل يختار. قواعد قابلة للضبط (min/max products، فئات مؤهلة، tiers خصم). تطبيق discount عبر Salla Coupons API. Dashboard يكشف "Top customer-built combinations" لإعلام official bundles.
+
+#### User Flow
+
+```
+[العميل يتصفح category]
+     ↓
+[يرى "Build Your Bundle" CTA: "اختر 3 منتجات واحصلي على 15% خصم"]
+     ↓
+[ينقر → bundle builder modal]
+     ↓
+[يختار منتجات (مع eligibility check)]
+     ↓
+[الاختيارات تبني، tier discount يرتفع:
+  - 3 = 10% off
+  - 5 = 15% off
+  - 7+ = 20% off
+]
+     ↓
+[ينقر "Add Bundle to Cart"]
+     ↓
+[Salla coupon يُطبق تلقائيًا عند checkout]
+     ↓
+[Conversion + combination مسجل]
+```
+
+#### المتطلبات الوظيفية
+
+- **FR-47.1** قواعد bundle قابلة للضبط: min/max، فئات مؤهلة، tiers.
+- **FR-47.2** "Build Bundle" CTA على category pages و homepage.
+- **FR-47.3** Modal: يعرض الاختيارات الحالية + المساحات المتبقية + tier الحالي.
+- **FR-47.4** Eligibility check لكل منتج: matches categories، in stock.
+- **FR-47.5** Dynamic discount calculation.
+- **FR-47.6** "Add Bundle to Cart" ينشئ cart entries + يطبق coupon.
+- **FR-47.7** Coupon auto-generated per bundle (single-use، 24h expiry).
+- **FR-47.8** Dashboard: top combinations.
+- **FR-47.9** Doctor rule: لو combination X بُني 20+ مرة، اقترح official bundle.
+- **FR-47.10** Cancel/restart bundle بدون التأثير على cart الحالي.
+
+#### UX Requirements
+
+**Modal Builder:**
+- Full-screen على mobile، large modal على desktop
+- Progress bar: "1 of 3" → "3 of 3 — 15% discount!"
+- Product cards بصرية
+- Total + savings display
+
+**التصميم البصري:**
+- Gamified: progress bar، "Unlock more!"
+- Confetti animation عند milestone
+- CTA واضح
+
+#### Configuration
+
+```typescript
+interface BundleBuilderConfig {
+  enabled: boolean;
+  minProducts: number;
+  maxProducts: number;
+  eligibleCategoryIds: string[];
+  discountTiers: { minProducts: number; discountPercent: number; }[];
+  ctaPlacement: ('category' | 'homepage' | 'pdp')[];
+  couponExpiryHours: number;
+  trackCombinations: boolean;
+}
+```
+
+#### Data Captured
+
+```typescript
+interface BundleCreation {
+  id: string;
+  merchant_id: string;
+  customer_id?: string;
+  session_id: string;
+  products_selected: string[];
+  total_value: number;
+  discount_percent: number;
+  discount_amount: number;
+  coupon_code: string;
+  added_to_cart: boolean;
+  completed_purchase: boolean;
+  order_id?: string;
+  created_at: timestamp;
+}
+```
+
+#### Edge Cases
+
+| الحالة | السلوك |
+|---|---|
+| Product يصبح OOS أثناء البناء | إشعار، السماح بـ swap |
+| العميل غيّر رأيه | UI سهل لـ remove/swap |
+| Bundle يخلق conflict مع items موجودة | تأكيد قبل merge |
+| Coupon منتهي قبل checkout | auto-regenerate أو إشعار |
+| Discount أكبر من حد التاجر | cap على الحد |
+| العميل تخلى | save state، السماح بـ resume |
+| نفس المنتج مرتين (variants) | معاملة كمنتجات منفصلة |
+| 100+ منتج مؤهل | pagination + search |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Full-screen modal، swipe
+- **A11y:** Keyboard navigation، announce tier unlocks
+- **Salla Integration:** Coupons API، Products API، Cart API
+
+#### الجهد المقدر
+كبير: **8-10 أيام**
+
+---
+
+### 27.17 Module 48 — Recently Viewed Memory Strip (🟠 Phase 2)
+
+#### الوصف
+Sticky horizontal strip يعرض المنتجات المشاهدة مؤخرًا + Dashboard tracking. يساعد العملاء يجدون المنتجات اللي ما اشتروها. ينتج analytics: المنتجات المشاهدة لكن غير مشترية (high-friction signal). **تنبيه تداخل themes:** بعض Salla themes تعرض "recently viewed" — قيمتنا المضافة في Dashboard tracking.
+
+#### User Flow
+
+```
+[العميل يتصفح PDPs A, B, C, D (بدون شراء)]
+     ↓
+[Smart Snippet يتتبع كل view في localStorage]
+     ↓
+[العميل في category page]
+     ↓
+[Sticky strip يظهر أسفل: "Recently viewed: A B C D"]
+     ↓
+[ينقر أي → يرجع للـ PDP]
+     ↓
+[Analytics: view-to-purchase conversion per product]
+     ↓
+[Doctor: products بـ high views لكن low purchases = signal]
+```
+
+#### المتطلبات الوظيفية
+
+- **FR-48.1** تتبع PDP visits في localStorage (max 20، FIFO).
+- **FR-48.2** عرض sticky strip أسفل category/homepage (ليس PDP).
+- **FR-48.3** Horizontal scroll لـ 5+ products.
+- **FR-48.4** كشف إذا Salla theme يعرض recently viewed → تخطي.
+- **FR-48.5** Click على منتج → navigate، track click event.
+- **FR-48.6** Backend tracking: view-to-purchase per product.
+- **FR-48.7** Dashboard widget: "Most viewed، never purchased".
+- **FR-48.8** Doctor signal: high-view + low-purchase = friction.
+- **FR-48.9** قابل للضبط: position، max products.
+- **FR-48.10** Dismissible per session.
+
+#### UX Requirements
+
+**Strip:**
+- Sticky bottom، 60px height
+- Horizontal scroll لـ 5+
+- Product mini-cards: image + name + price
+- "View All Recently Viewed" link
+
+**التصميم البصري:**
+- Subtle: لا ينافس المحتوى الرئيسي
+- يرث theme colors
+- Smooth scroll على mobile
+
+#### Configuration
+
+```typescript
+interface RecentlyViewedConfig {
+  enabled: boolean;
+  maxProductsTracked: number;
+  maxProductsDisplayed: number;
+  position: 'top' | 'bottom' | 'sidebar';
+  showOnPages: ('homepage' | 'category' | 'cart')[];
+  themeDetection: boolean;
+  dismissible: boolean;
+}
+```
+
+#### Data Captured
+
+```typescript
+interface RecentlyViewedEvent {
+  id: string;
+  merchant_id: string;
+  session_id: string;
+  product_id: string;
+  view_count_in_session: number;
+  added_to_cart: boolean;
+  purchased: boolean;
+  time_to_purchase_minutes?: number;
+  created_at: timestamp;
+}
+```
+
+#### Edge Cases
+
+| الحالة | السلوك |
+|---|---|
+| localStorage فُرّغ | Strip فارغ حتى views جديدة |
+| Theme يعرض recently viewed | إخفاء strip (configurable) |
+| 20+ products | FIFO eviction |
+| العميل على private browsing | يعمل في جلسة، يضيع عند الإغلاق |
+| Product حُذف | إزالة من strip + localStorage |
+| العميل أغلق strip | إخفاء للجلسة |
+| Mobile viewport صغير | scroll horizontal smooth |
+| Strip يحجب محتوى مهم | position قابل للضبط |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Bottom strip، swipeable
+- **A11y:** كل منتج focusable، keyboard arrows
+- **Salla Integration:** Twilight body hooks (مؤكد)، theme detection
+
+#### الجهد المقدر
+صغير-متوسط: **3-4 أيام**
+
+---
+
+### 27.18 Module 52 — Smart Coupon Discovery (🟠 Phase 2)
+
+#### الوصف
+بحث coupon في cart + التقاط codes غير موجودة. العميل يقدر يبحث عن promo codes. يعرض valid codes إذا موجودة، يلتقط invalid searches لذكاء التاجر. يكشف demand لحملات promo.
+
+#### User Flow
+
+```
+[العميل في cart]
+     ↓
+[يرى "هل لديك كود خصم؟" قسم expandable]
+     ↓
+[يكتب: "BLACKFRIDAY2024"]
+     ↓
+[النظام يفحص Coupons API]
+     ↓
+[CASE A: Valid → مُطبق + تأكيد]
+[CASE B: Invalid → "هذا الكود غير صالح" + capture]
+     ↓
+[Dashboard: top searched-but-not-found codes]
+     ↓
+[Doctor: "customers يبحثون X، فكر في إنشاء هذا promo"]
+```
+
+#### المتطلبات الوظيفية
+
+- **FR-52.1** Cart-side coupon search input (collapsible).
+- **FR-52.2** Real-time validation via Salla Coupons API.
+- **FR-52.3** Valid code → auto-apply، عرض savings.
+- **FR-52.4** Invalid → friendly error + capture في `coupon_searches`.
+- **FR-52.5** اقتراح coupons نشطة إذا invalid.
+- **FR-52.6** Dashboard: "Top searched-but-not-found" + frequency.
+- **FR-52.7** Doctor rule: لو نفس code 10+ مرات، اقترح إنشاءه.
+- **FR-52.8** Rate limit: max 5 attempts per session.
+- **FR-52.9** التقاط context: cart_total، products، source.
+- **FR-52.10** Spam protection: فلتر bot patterns.
+
+#### UX Requirements
+
+**Coupon Search UI:**
+- Collapsible "هل لديك كود خصم؟" في cart
+- Single input + Apply button
+- Inline error/success feedback
+- اقتراح active coupons عند error
+
+**التصميم البصري:**
+- Subtle، لا يهيمن
+- Success: أخضر + "وفّرت X ريال"
+- Error: أحمر + "الكود غير صالح" + alternatives
+
+#### Configuration
+
+```typescript
+interface CouponDiscoveryConfig {
+  enabled: boolean;
+  maxAttemptsPerSession: number;
+  suggestActiveCouponsOnFail: boolean;
+  captureSearchedCodes: boolean;
+  doctorThreshold: number;
+  cartUIPosition: 'top' | 'middle' | 'bottom';
+}
+```
+
+#### Data Captured
+
+```typescript
+interface CouponSearch {
+  id: string;
+  merchant_id: string;
+  searched_code: string;
+  found: boolean;
+  cart_total: number;
+  cart_items_count: number;
+  customer_id?: string;
+  session_id: string;
+  attempt_number: number;
+  resulted_in_purchase: boolean;
+  searched_at: timestamp;
+}
+```
+
+#### Edge Cases
+
+| الحالة | السلوك |
+|---|---|
+| 5+ محاولات | rate limit، "Too many attempts" |
+| Code valid لكن منتهي | "Code expired on X" + alternatives |
+| Code valid لكن min order لم يُحقق | "كود يحتاج طلب فوق X" |
+| SQL injection | sanitize، log security |
+| نفس code searched كثير | aggregate، flag للتاجر |
+| Code valid لكن مُطبق | "Already applied" |
+| Multiple codes في checkout | track each attempt |
+| Influencer code never created | Doctor recommends |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Input أكبر، Apply button mobile-friendly
+- **A11y:** Input labeled، errors via ARIA live
+- **Salla Integration:** Coupons API
+
+#### الجهد المقدر
+متوسط: **4-6 أيام**
+
+---
+
+### 27.19 Module 53 — Shipping Transparency Calculator (🟠 Phase 2)
+
+#### الوصف
+Pre-checkout shipping cost calculator على PDP و Cart. يقلل checkout abandonment من مفاجأة shipping cost. Auto-detect city من IP أو يسأل العميل. يعرض "add X SAR for free shipping" progress bar لتشجيع AOV.
+
+#### User Flow
+
+```
+[العميل على PDP أو cart]
+     ↓
+[Smart Snippet يكشف city من IP (أو يسأل)]
+     ↓
+[يستدعي Salla Shipping API]
+     ↓
+[يعرض:
+  - خيارات الشحن + الأسعار
+  - Free shipping threshold
+  - Progress bar: "أضف 23 ر.س للشحن المجاني"
+]
+     ↓
+[العميل يضيف أكثر → progress bar يحدث]
+     ↓
+[يصل threshold → "🎉 شحن مجاني!"]
+```
+
+#### المتطلبات الوظيفية
+
+- **FR-53.1** كشف city via IP geolocation.
+- **FR-53.2** Fallback: اسأل العميل اختيار city.
+- **FR-53.3** استدعاء Salla Shipping API لخيارات + أسعار.
+- **FR-53.4** عرض الخيارات inline على PDP و cart.
+- **FR-53.5** عرض "free shipping at X ر.س" badge.
+- **FR-53.6** Progress bar يحدث مع cart total.
+- **FR-53.7** "🎉 شحن مجاني!" celebration عند threshold.
+- **FR-53.8** Cache shipping data per city لـ 24 ساعة.
+- **FR-53.9** Doctor signal: shipping cost objection rate.
+- **FR-53.10** A/B test: مع vs بدون calculator.
+
+#### UX Requirements
+
+**Widget:**
+- Collapsible (expanded default)
+- أيقونة truck/delivery
+- City selector (dropdown مع auto-detect)
+- Shipping options كـ cards
+
+**Progress Bar:**
+- Animated fill
+- Colors: red → yellow → green
+- Celebration عند threshold
+
+#### Configuration
+
+```typescript
+interface ShippingCalculatorConfig {
+  enabled: boolean;
+  autoDetectCity: boolean;
+  fallbackToManualSelect: boolean;
+  showOnPages: ('pdp' | 'cart')[];
+  freeShippingThreshold?: number;
+  progressBarEnabled: boolean;
+  cacheHours: number;
+}
+```
+
+#### Data Captured
+
+```typescript
+interface ShippingCalculation {
+  id: string;
+  merchant_id: string;
+  session_id: string;
+  customer_id?: string;
+  detected_city: string;
+  manually_selected_city?: string;
+  cart_total: number;
+  cheapest_shipping_cost: number;
+  free_shipping_threshold?: number;
+  reached_free_threshold: boolean;
+  resulted_in_purchase: boolean;
+  shipping_method_chosen?: string;
+  created_at: timestamp;
+}
+```
+
+#### Edge Cases
+
+| الحالة | السلوك |
+|---|---|
+| IP geolocation فشل | عرض manual selector فورًا |
+| City بدون shipping | "Shipping unavailable" + alternatives |
+| التاجر غير shipping rates | invalidate cache |
+| العميل غير city mid-session | recalculate، update progress |
+| Salla Shipping API down | message عام، إخفاء calculator |
+| Free shipping threshold removed | إخفاء progress bar |
+| Shipping دولي | configurable |
+| VPN user | السماح بـ manual override |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Collapsed default
+- **A11y:** City selector accessible، progress bar مع label
+- **Salla Integration:** Shipping API (⚠️ **يحتاج verification**)
+
+#### الجهد المقدر
+متوسط: **5-7 أيام**
+
+---
+
+### 27.20 Module 56 — Free Sample / Trial Request (🟠 Phase 2)
+
+#### الوصف
+Sample request workflow للمنتجات high-AOV (مثل عطور > 500 ر.س، skincare). يقلل purchase risk للمنتجات premium بالسماح بـ try-before-buy. منتجات مؤهلة قابلة للضبط. Sample ينشئ Salla order مع sample SKU + يتتبع sample-to-full-purchase conversion. يشمل operational workflow للتاجر.
+
+#### User Flow
+
+```
+[العميل على PDP high-AOV (>500 SAR threshold)]
+     ↓
+[يرى "Try a sample first" CTA بجانب Add to Cart]
+     ↓
+[ينقر → sample request modal]
+     ↓
+[Modal:
+  - معلومات المنتج
+  - حجم/نوع العينة
+  - نموذج الشحن
+  - "Free with X SAR shipping" أو "Cost X SAR"
+]
+     ↓
+[Submit → ينشئ Salla order مع sample SKU]
+     ↓
+[التاجر يكمّل الـ sample]
+     ↓
+[Follow-up: 7-14 يوم بعد، "هل أعجبتك؟ اشتري الكامل"]
+     ↓
+[Conversion: sample → full purchase]
+```
+
+#### المتطلبات الوظيفية
+
+- **FR-56.1** كشف eligibility: products مع `sample_eligible` tag أو price > threshold.
+- **FR-56.2** "Try a sample" CTA على eligible PDPs.
+- **FR-56.3** Sample request modal: product، sample variant، shipping address.
+- **FR-56.4** إنشاء Salla order مع parent_product_id + sample_sku.
+- **FR-56.5** Sample fulfillment مسجل منفصل.
+- **FR-56.6** Auto follow-up email/WhatsApp بعد 7-14 يوم.
+- **FR-56.7** تتبع sample → full purchase (window 30 يوم).
+- **FR-56.8** Dashboard: sample requests، fulfilled، conversion rate، revenue.
+- **FR-56.9** إعدادات التاجر: أي منتجات مؤهلة، sample cost، max samples per customer.
+- **FR-56.10** Customer profile flag: "Sample requestor".
+
+#### UX Requirements
+
+**Sample CTA على PDP:**
+- Secondary CTA (لا ينافس "Add to Cart")
+- "🧪 جربيها أولاً — عينة مجانية"
+- Eligibility indicator
+
+**Sample Request Modal:**
+- إشارات ثقة: "ستصلك خلال X أيام"
+- Address form واضح
+- أسئلة اختيارية عن skin/preferences
+- Submit + confirmation
+
+**Follow-up:**
+- دافئ: "كيف كانت تجربتك مع العينة؟"
+- CTA: "اطلبي الحجم الكامل بـ X ر.س"
+- Discount incentive
+
+#### Configuration
+
+```typescript
+interface SampleRequestConfig {
+  enabled: boolean;
+  eligibilityRules: {
+    priceThreshold: number;
+    tagsRequired: string[];
+  };
+  sampleCost: number;
+  maxSamplesPerCustomer: number;
+  followUpDelayDays: number;
+  followUpDiscountPercent: number;
+  fulfillmentMethod: 'merchant_manual' | 'auto_order';
+}
+```
+
+#### Data Captured
+
+```typescript
+interface SampleRequest {
+  id: string;
+  merchant_id: string;
+  customer_id?: string;
+  customer_phone_hash: string;
+  parent_product_id: string;
+  sample_sku?: string;
+  shipping_address: object;
+  sample_order_id?: string;
+  fulfillment_status: 'pending' | 'fulfilled' | 'delivered';
+  delivered_at?: timestamp;
+  followup_sent_at?: timestamp;
+  followup_clicked_at?: timestamp;
+  full_purchase_order_id?: string;
+  attribution_revenue?: number;
+  created_at: timestamp;
+}
+```
+
+#### Edge Cases
+
+| الحالة | السلوك |
+|---|---|
+| العميل طلب sample نفس المنتج | "أنتِ بالفعل طلبتِ عينة لهذا المنتج" |
+| Sample stock نفد | "Samples unavailable" + offer regular |
+| العميل وصل max samples | عرض حد |
+| العميل لا ينخرط مع follow-up | track silent failure، retry مرة |
+| العميل اشترى الكامل قبل follow-up | skip follow-up، mark converted |
+| Sample shipping cost عالي | configurable، قد يحتاج bundle |
+| التاجر عطّل sample للمنتج | إخفاء CTA فورًا |
+| Address validation فشل | error ودود، اقترح alternatives |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Modal full-screen، نموذج مبسط
+- **A11y:** Form fields labeled، address validation announced
+- **Salla Integration:** Orders API لإنشاء sample order، custom SKU tagging
+
+#### الجهد المقدر
+كبير: **8-10 أيام** (يشمل operational workflow + follow-up automation)
+
+---
+### 27.21 ملخص الجهد الإجمالي (Expanded MVP)
 
 | Phase | Modules | الجهد الإجمالي |
 |---|---|---|
@@ -3563,7 +4588,7 @@ interface ReorderReminder {
 
 **مع 2 devs (founder + junior):** ~20-22 أسبوع timeline MVP.
 
-### 27.13 Critical Path Items
+### 27.22 Critical Path Items
 
 العناصر التي يمكن أن تعيق modules متعددة:
 1. **تحقق Salla checkout customization** — يعيق Phase 2 Modules 37، 43، ربما 53.
@@ -3572,7 +4597,7 @@ interface ReorderReminder {
 4. **توفر Salla Shipping API** — يعيق Phase 2 Module 53.
 5. **بنية session tracking** — يحتاج لـ Phase 2 Module 45.
 
-### 27.14 المخاطر والتخفيف من Expanded MVP
+### 27.23 المخاطر والتخفيف من Expanded MVP
 
 | الخطر | التخفيف |
 |---|---|

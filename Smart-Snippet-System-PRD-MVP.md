@@ -3519,67 +3519,1115 @@ Medium: **5-7 dev days**
 
 ---
 
-### 27.11 Phase 2 Roadmap (10 Remaining Modules)
+### 27.11 Module 37 — Checkout Hesitation Capture (🟠 Phase 2)
 
-These 10 modules remain in Phase 2 roadmap (Months 10-18 post-MVP launch). Specs condensed.
+#### Description
+Captures abandonment reasons specifically on the checkout page. Different from PDP-level hesitation (Feature 1) because checkout abandonment has distinct causes (shipping cost surprises, payment method issues, security concerns, unexpected total). Customers who reach checkout are high-intent, so understanding why they bail out is critical revenue insight.
 
-#### Module 37 — Checkout Hesitation Capture
-**Description:** Capture abandonment reasons on checkout page specifically.
-**Key FRs:** Exit intent detection on checkout, 6-option reason selector, separate analytics from PDP hesitations.
-**Salla Integration:** Twilight checkout hooks (⚠️ NEEDS VERIFICATION).
-**Effort:** Medium-Large (5-7 days).
+#### User Flow
 
-#### Module 41 — Live Stock Urgency Signal
-**Description:** Transparent stock count + viewing count badge.
-**Key FRs:** `product.quantity.low` webhook subscription, threshold-based display, theme overlap detection.
-**Effort:** Small-Medium (3-5 days).
+```
+[Customer reaches checkout page]
+     ↓
+[Fills delivery info, sees final total]
+     ↓
+[Smart Snippet detects exit intent or back navigation]
+     ↓
+[Lightweight modal: "ما يمنعك من إكمال الطلب؟"]
+     ↓
+[6-option reason selector (checkout-specific)]
+     ↓
+[Submit → stored separately from PDP hesitations]
+     ↓
+[Doctor triggers checkout-specific rules]
+```
 
-#### Module 42 — Mobile One-Tap Interest
-**Description:** Anonymous mobile interest capture (Salla Wishlist complement).
-**Key FRs:** Sticky heart icon, cookie-based tracking, no PII required.
-**Kill Criterion:** If volume < 2x Salla native Wishlist, remove.
-**Effort:** Small (2-3 days).
+#### Functional Requirements
 
-#### Module 43 — Pre-Checkout Confidence Booster
-**Description:** Trust signals + WhatsApp CTA above "Place Order".
-**Key FRs:** Configurable trust block, WhatsApp support button, conversion tracking.
-**Salla Integration:** Twilight checkout hooks (⚠️ NEEDS VERIFICATION).
-**Effort:** Small (2-3 days).
+- **FR-37.1** Detect exit intent on checkout page: mouseleave + scroll-up + idle threshold.
+- **FR-37.2** Display 6 checkout-specific reasons: shipping cost, payment issue, security, unexpected total, missing payment method, will come back later.
+- **FR-37.3** Allow custom free text input (max 500 chars).
+- **FR-37.4** Submit data to `checkout_hesitations` table (separate from `hesitation_submissions`).
+- **FR-37.5** Capture: cart_total, payment_method_selected (if any), shipping_method_selected, delivery_country.
+- **FR-37.6** Doctor rule: if shipping_cost reason > 5/week, suggest free shipping threshold review.
+- **FR-37.7** Dashboard: Checkout abandonment funnel + top reasons.
+- **FR-37.8** A/B test trigger timing: immediate vs after 30s idle.
+- **FR-37.9** Optional: offer last-chance discount when high-value cart (>500 SAR) abandons.
+- **FR-37.10** Mobile: bottom-sheet modal (less intrusive than full overlay).
 
-#### Module 45 — Comparison Shopping Detector
-**Description:** Detect 3+ PDPs in same category, intervene with help widget.
-**Key FRs:** Session tracking, category matching, "What's making decision hard?" widget.
-**Effort:** Medium-Large (6-8 days).
+#### UX Requirements
 
-#### Module 47 — Customer Bundle Builder
-**Description:** Customer selects 3+ products → custom bundle with auto-discount.
-**Key FRs:** Configurable rules (min/max, eligible categories, tiers), Coupons API for discount.
-**Effort:** Large (8-10 days).
+**Visual Design:**
+- Less aggressive than PDP hesitation (customer already invested time)
+- Empathetic tone: "نقدر وقتك — أخبرنا ليش"
+- Quick-tap options + skip available
 
-#### Module 48 — Recently Viewed Memory Strip
-**Description:** Sticky strip of recently viewed products + Dashboard tracking.
-**Key FRs:** localStorage cache, view-to-purchase tracking.
-**Effort:** Small-Medium (3-4 days).
+**Modal Style:**
+- Slides up from bottom on mobile
+- Centered on desktop, max-width 500px
+- Trust signals: "ردك يبقى خاص" reassurance
 
-#### Module 52 — Smart Coupon Discovery
-**Description:** Cart-side coupon search + capture of searched non-existent codes.
-**Key FRs:** Coupons API integration, capture searched-but-not-found codes.
-**Effort:** Medium (4-6 days).
+#### Configuration
 
-#### Module 53 — Shipping Transparency Calculator
-**Description:** Pre-checkout shipping cost calculator on PDP/Cart.
-**Key FRs:** City/region detection, real-time shipping calc, "add X for free shipping" progress.
-**Salla Integration:** Shipping API (⚠️ VERIFY AVAILABILITY).
-**Effort:** Medium (5-7 days).
+```typescript
+interface CheckoutHesitationConfig {
+  enabled: boolean;
+  triggerMode: 'exit_intent' | 'idle_timeout' | 'back_navigation';
+  idleThresholdSeconds: number;            // default 30
+  reasons: {
+    id: string;
+    label_ar: string;
+    label_en: string;
+    enabled: boolean;
+  }[];
+  showLastChanceOffer: boolean;
+  lastChanceOfferThreshold: number;        // cart value
+  lastChanceOfferCouponCode: string;
+}
+```
 
-#### Module 56 — Free Sample / Trial Request
-**Description:** Sample request workflow for high-AOV products (>500 SAR).
-**Key FRs:** Eligibility detection, sample order creation, conversion tracking.
-**Effort:** Large (8-10 days, includes operational workflow).
+#### Data Captured
+
+```typescript
+interface CheckoutHesitation {
+  id: string;
+  merchant_id: string;
+  trigger_mode: 'exit_intent' | 'idle_timeout' | 'back_navigation';
+  reason_id?: string;
+  reason_label?: string;
+  free_text?: string;
+  cart_total: number;
+  cart_items_count: number;
+  payment_method_selected?: string;
+  shipping_method_selected?: string;
+  delivery_country: string;
+  delivery_city: string;
+  customer_id?: string;
+  session_id: string;
+  device_type: string;
+  time_on_checkout_seconds: number;
+  was_lastchance_offered: boolean;
+  was_lastchance_accepted: boolean;
+  created_at: timestamp;
+}
+```
+
+#### Edge Cases
+
+| Edge Case | Behavior |
+|---|---|
+| Customer completes order anyway after seeing modal | Mark as "recovered" |
+| Multiple checkout attempts in session | Aggregate, don't show modal again |
+| Customer dismisses modal | Track dismissal event |
+| Payment method genuinely broken | Surface in Doctor as critical |
+| Customer on slow connection | Don't trigger (avoid friction) |
+| Salla checkout customization not available | Fall back to cart-page exit intent |
+| Last-chance discount already used | Skip offer, show standard modal |
+| Bot/scraper on checkout | Skip modal |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Bottom sheet, swipe-to-dismiss, large tap targets
+- **A11y:** Modal focus trap, ARIA labels, keyboard navigation
+- **Salla Integration:** Twilight checkout hooks (⚠️ **NEEDS VERIFICATION** — currently checkout customization may be restricted)
+
+#### Effort
+Medium-Large: **5-7 dev days** (contingent on Salla checkout hooks availability)
 
 ---
 
-### 27.12 Expanded MVP Total Effort Estimate
+### 27.12 Module 41 — Live Stock Urgency Signal (🟠 Phase 2)
+
+#### Description
+Displays transparent stock count + viewing count badge on product pages when stock is genuinely low. Unlike fake urgency widgets (PopupSnap-style), this uses real data from Salla's `product.quantity.low` webhook and our analytics events. Builds trust through transparency while creating legitimate scarcity-driven conversion.
+
+#### User Flow
+
+```
+[Salla webhook: product.quantity.low fires]
+     ↓
+[Smart Snippet caches: product X has Y stock]
+     ↓
+[Customer visits PDP for product X]
+     ↓
+[Snippet checks: stock < threshold AND theme doesn't already show stock]
+     ↓
+[Display badge: "⚠️ بقي 3 قطع + 12 يشاهدون الآن"]
+     ↓
+[Real-time viewing count updates via analytics]
+     ↓
+[Track: badge_view, badge_impression, purchase_attribution]
+```
+
+#### Functional Requirements
+
+- **FR-41.1** Subscribe to Salla `product.quantity.low` webhook.
+- **FR-41.2** Cache low-stock products in Redis with TTL = 1 hour.
+- **FR-41.3** On PDP load: check if product is in low-stock cache.
+- **FR-41.4** Display urgency badge only if stock_qty ≤ configurable threshold (default 5).
+- **FR-41.5** Theme detection: if Salla theme already renders stock count, skip our badge (avoid duplication).
+- **FR-41.6** Real-time viewing count: aggregate `widget_viewed` events for product in last 5 minutes.
+- **FR-41.7** Badge updates every 30 seconds via lightweight polling or WebSocket.
+- **FR-41.8** Track badge_impression, badge_dismissed events.
+- **FR-41.9** A/B test impact: badge shown vs hidden control group.
+- **FR-41.10** Dashboard: products with active urgency badges + conversion lift.
+
+#### UX Requirements
+
+**Badge Style:**
+- Inline with PDP (not popup)
+- Subtle amber/orange (warning, not panic)
+- Clear icon: ⚠️ or ⏰
+- Honest copy: "X قطع متبقية"
+- Live viewer count: "Y يشاهدون الآن" (real number, not fake)
+
+**Visual:**
+- Inherits Salla theme typography
+- 8px border-radius, soft shadow
+- Animated count change (smooth transition)
+
+#### Configuration
+
+```typescript
+interface LiveStockUrgencyConfig {
+  enabled: boolean;
+  stockThreshold: number;                  // default 5
+  showViewingCount: boolean;
+  viewingCountWindowMinutes: number;       // default 5
+  themeDetectionEnabled: boolean;          // skip if theme shows stock
+  badgeStyle: 'subtle' | 'prominent';
+  updateIntervalSeconds: number;           // default 30
+  badgeText_ar: string;                    // template with {{stock}}, {{viewers}}
+  badgeText_en: string;
+}
+```
+
+#### Data Captured
+
+```typescript
+interface UrgencyBadgeEvent {
+  id: string;
+  merchant_id: string;
+  product_id: string;
+  stock_at_view: number;
+  viewers_count: number;
+  badge_shown: boolean;
+  customer_id?: string;
+  session_id: string;
+  resulted_in_purchase?: boolean;
+  created_at: timestamp;
+}
+```
+
+#### Edge Cases
+
+| Edge Case | Behavior |
+|---|---|
+| Stock genuinely 0 | Hide urgency badge, show OOS substitute (Module 50) |
+| Theme already shows "بقي X" | Skip our badge to avoid duplication |
+| Webhook delayed (stale data) | Refresh from Salla API on PDP load |
+| Stock increased after low signal | Update cache, hide badge if above threshold |
+| Bot inflating viewing count | Filter bot user agents from count |
+| Customer has ad blocker | Badge may not load, graceful fallback |
+| Multiple variants different stock | Show badge per variant if applicable |
+| Webhook fails | Fallback to periodic Salla API check (every 15 min) |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Smaller badge, mobile-optimized typography
+- **A11y:** Badge has descriptive ARIA label, screen reader announces stock + viewers
+- **Salla Integration:** `product.quantity.low` webhook (Confirmed), Products API for stock check, Twilight PDP hooks for badge injection
+
+#### Effort
+Small-Medium: **3-5 dev days**
+
+---
+
+### 27.13 Module 42 — Mobile One-Tap Interest (🟠 Phase 2)
+
+#### Description
+Anonymous mobile-only interest capture without form. Sticky heart icon on PDP allows one-tap save without phone, email, or login. Cookie-based tracking. **Companion to Salla Wishlist** (not replacement) — captures higher volume since no login friction. Kill criterion: if volume < 2x Salla Wishlist after pilot, remove from roadmap.
+
+#### User Flow
+
+```
+[Customer visits PDP on mobile]
+     ↓
+[Sees Salla Add-to-Cart + our heart icon (sticky bottom-right)]
+     ↓
+[One tap → cookie stores: { product_id, timestamp }]
+     ↓
+[Heart fills in red — visual feedback]
+     ↓
+[Customer continues browsing or leaves]
+     ↓
+[Later visit: heart shows pre-filled for saved products]
+     ↓
+[Dashboard: anonymous saves trending → demand signal for Doctor]
+```
+
+#### Functional Requirements
+
+- **FR-42.1** Sticky heart icon on PDP (mobile only via user-agent detection).
+- **FR-42.2** Single tap toggles save state (fill/unfill heart).
+- **FR-42.3** Store in `ss_saved_products` cookie (max 50 products, FIFO eviction).
+- **FR-42.4** Send anonymous event to backend: `mobile_save` event with product_id, session_id.
+- **FR-42.5** No PII required (anonymous-first design).
+- **FR-42.6** On return visit (same browser): heart pre-filled for previously saved products.
+- **FR-42.7** Dashboard: aggregate "most anonymous-saved products" (not tied to customers).
+- **FR-42.8** Doctor signal: products with high save-to-purchase delta = high-intent but blocked.
+- **FR-42.9** Position carefully to avoid conflict with Salla theme add-to-favorites button.
+- **FR-42.10** Pilot kill criterion: if volume < 2x Salla Wishlist in first month, deprecate.
+
+#### UX Requirements
+
+**Heart Icon:**
+- 48px tap target
+- Position: bottom-right corner, sticky
+- Animations: fill on tap, subtle pulse to draw attention
+- Inactive state: outline heart
+- Active state: solid red heart + brief "تم الحفظ" tooltip (1.5s)
+
+**Subtle, not pushy:**
+- No badges, no notification dots
+- Lightweight visual
+
+#### Configuration
+
+```typescript
+interface MobileOneTapConfig {
+  enabled: boolean;
+  position: 'bottom-right' | 'bottom-left' | 'sticky-top';
+  iconStyle: 'heart' | 'bookmark' | 'plus';
+  maxSavedPerCookie: number;               // default 50
+  showSalleWishlistAlongside: boolean;     // default true (companion)
+  pilotKillThresholdMonths: number;        // default 1
+  pilotMinVolumeMultiplier: number;        // default 2.0 (vs Wishlist)
+}
+```
+
+#### Data Captured
+
+```typescript
+interface MobileSaveEvent {
+  id: string;
+  merchant_id: string;
+  product_id: string;
+  session_id: string;
+  device_type: 'mobile' | 'tablet';
+  action: 'save' | 'unsave';
+  is_returning_visitor: boolean;
+  saved_count_in_cookie: number;
+  created_at: timestamp;
+}
+```
+
+#### Edge Cases
+
+| Edge Case | Behavior |
+|---|---|
+| User on desktop | Don't show icon (mobile-only) |
+| Cookie cleared | Customer loses saves (acceptable for anonymous) |
+| 50+ saves limit reached | FIFO eviction with notification |
+| Salla theme already has favorites | Position to avoid overlap, configurable |
+| Customer also uses Salla Wishlist | Both tracked separately (companion) |
+| Ad blocker blocks cookie | Feature silently degrades |
+| Customer logs into Salla after saves | Don't auto-merge to Wishlist (different intent) |
+| Pilot fails (volume too low) | Remove via admin toggle, deprecation message |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Optimized for thumb reach (bottom-right)
+- **A11y:** Button has descriptive ARIA label ("Save product anonymously"), screen reader announces state
+- **Salla Integration:** Twilight SDK for mobile detection, theme detection for positioning. Salla Wishlist remains primary.
+
+#### Effort
+Small: **2-3 dev days** (with kill criterion review at Month 1)
+
+---
+
+### 27.14 Module 43 — Pre-Checkout Confidence Booster (🟠 Phase 2)
+
+#### Description
+Trust signals + WhatsApp CTA injected above "Place Order" button on checkout page. Designed to reduce last-second hesitation in luxury/high-AOV stores where every 0.5% CVR = thousands of SAR/month. Modular trust block configurable per merchant (shipping guarantees, return policy, payment security, WhatsApp support).
+
+#### User Flow
+
+```
+[Customer fills checkout form]
+     ↓
+[Reaches payment step, about to click "Place Order"]
+     ↓
+[Pre-Checkout block displays above button:
+  - Trust signals (shipping/return/secure)
+  - WhatsApp button: "تواصل قبل الدفع؟"
+]
+     ↓
+[Customer either:
+  A) Clicks Place Order → conversion
+  B) Clicks WhatsApp → conversation with merchant
+  C) Leaves → tracked as abandonment
+]
+```
+
+#### Functional Requirements
+
+- **FR-43.1** Inject configurable trust block above checkout's primary CTA.
+- **FR-43.2** Trust signals: free shipping reminder, return policy, secure payment, customer support availability.
+- **FR-43.3** Optional WhatsApp button: deep link to merchant WhatsApp with pre-filled message.
+- **FR-43.4** Pre-filled message: "أنا على وشك إكمال طلب — لدي سؤال أخير".
+- **FR-43.5** Track impression of trust block, click on WhatsApp, conversion attribution.
+- **FR-43.6** Show only on checkout (not cart, not PDP).
+- **FR-43.7** Configurable: which signals to show, custom signal text.
+- **FR-43.8** Mobile-optimized: stacks vertically, WhatsApp button prominent.
+- **FR-43.9** A/B test: trust block shown vs hidden (control).
+- **FR-43.10** Dashboard: trust block conversion lift, WhatsApp inbound conversations.
+
+#### UX Requirements
+
+**Trust Block Style:**
+- Subtle background (light gray/blue)
+- Icons + short text for each signal (✓ شحن مجاني فوق 200)
+- 3-5 signals max (don't overwhelm)
+
+**WhatsApp Button:**
+- Clear, prominent
+- Green/branded color
+- Pre-filled icon
+- "تواصل بسرعة" tagline
+
+#### Configuration
+
+```typescript
+interface PreCheckoutConfidenceConfig {
+  enabled: boolean;
+  trustSignals: {
+    id: string;
+    icon: string;
+    text_ar: string;
+    text_en: string;
+    enabled: boolean;
+  }[];
+  whatsAppEnabled: boolean;
+  whatsAppNumber: string;                  // merchant WA Business number
+  whatsAppMessage_ar: string;
+  whatsAppMessage_en: string;
+  position: 'above_cta' | 'below_cta' | 'sidebar';
+}
+```
+
+#### Data Captured
+
+```typescript
+interface PreCheckoutEvent {
+  id: string;
+  merchant_id: string;
+  session_id: string;
+  customer_id?: string;
+  cart_total: number;
+  trust_block_shown: boolean;
+  whatsapp_clicked: boolean;
+  resulted_in_purchase: boolean;
+  resulted_in_whatsapp_conversation: boolean;
+  created_at: timestamp;
+}
+```
+
+#### Edge Cases
+
+| Edge Case | Behavior |
+|---|---|
+| Merchant has no WhatsApp Business setup | Hide WhatsApp button, show trust signals only |
+| Customer clicks WhatsApp, then completes order | Track as "WhatsApp-assisted conversion" |
+| Trust block doesn't fit on mobile | Collapse less critical signals |
+| Salla checkout customization restricted | Inject above cart total instead |
+| Customer with ad blocker | Block won't render, no impact on checkout |
+| Pre-filled WhatsApp message blocked by Meta | Fallback to generic message |
+| Multiple checkout devices | Track unique per device |
+| WhatsApp number changes | Auto-update from merchant settings |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Stacked layout, WhatsApp button full-width
+- **A11y:** Trust signals are ARIA list, icons have alt text
+- **Salla Integration:** Twilight checkout hooks (⚠️ **NEEDS VERIFICATION**), WhatsApp BSP for tracking
+
+#### Effort
+Small: **2-3 dev days** (contingent on Salla checkout hooks)
+
+---
+
+### 27.15 Module 45 — Comparison Shopping Detector (🟠 Phase 2)
+
+#### Description
+Detects customers actively comparing products (viewing 3+ products in same category within 10 minutes) and intervenes with a help widget: "ما الذي يصعب القرار؟". Surfaces decision-friction reasons (price, attributes, style, etc.) and feeds Doctor for category-level optimization suggestions.
+
+#### User Flow
+
+```
+[Customer views Product A]
+     ↓
+[Goes back, views Product B (same category)]
+     ↓
+[Views Product C (same category, within 10 min)]
+     ↓
+[Smart Snippet detects comparison pattern]
+     ↓
+[Widget appears: "محتارة بين هذه المنتجات؟"]
+     ↓
+[5-option reason selector: price, fit, quality, style, occasion]
+     ↓
+[Submit → stored in comparison_signals]
+     ↓
+[Doctor: category-level friction insights]
+```
+
+#### Functional Requirements
+
+- **FR-45.1** Track PDP visits per session in real-time (server-side).
+- **FR-45.2** Detect comparison pattern: 3+ PDPs from same category within 10 minutes.
+- **FR-45.3** Categories matched via Salla Products API (category_id).
+- **FR-45.4** Trigger widget on 4th PDP view (after detection).
+- **FR-45.5** Widget asks: "ما الذي يصعب القرار؟" with 5 options.
+- **FR-45.6** Options: السعر، المقاس/الفِت، الجودة، الستايل، المناسبة (customizable per vertical).
+- **FR-45.7** Store in `comparison_signals` table with: session_id, category_id, products_viewed[], friction_reason.
+- **FR-45.8** Dashboard: comparison shopper percentage, top friction reasons per category.
+- **FR-45.9** Doctor rule: if "السعر" > 30% friction → suggest price-comparison snippet.
+- **FR-45.10** Cooldown: don't show widget more than once per session.
+
+#### UX Requirements
+
+**Widget Style:**
+- Non-intrusive bottom-right pop-in (NOT modal)
+- Friendly tone: "محتارة بين هذه؟ ساعدينا نساعدك"
+- 5 large tap options + skip
+- Dismissible
+
+**Visual:**
+- Soft purple/blue accent (research mode color)
+- Smooth slide-in from corner
+- Skip option visible
+
+#### Configuration
+
+```typescript
+interface ComparisonDetectorConfig {
+  enabled: boolean;
+  detectionThreshold: number;              // default 3 PDPs
+  detectionWindowMinutes: number;          // default 10
+  categoriesMustMatch: boolean;            // default true
+  cooldownMinutes: number;                 // default 60
+  frictionOptions: {
+    id: string;
+    label_ar: string;
+    label_en: string;
+    enabled: boolean;
+  }[];
+  vertical?: 'fashion' | 'beauty' | 'electronics';
+}
+```
+
+#### Data Captured
+
+```typescript
+interface ComparisonSignal {
+  id: string;
+  merchant_id: string;
+  session_id: string;
+  customer_id?: string;
+  category_id: string;
+  products_viewed: string[];               // ordered list
+  viewing_duration_seconds: number;
+  friction_reason?: string;
+  free_text?: string;
+  resulted_in_purchase?: string;           // product_id if converted
+  abandoned: boolean;
+  created_at: timestamp;
+}
+```
+
+#### Edge Cases
+
+| Edge Case | Behavior |
+|---|---|
+| Customer views multiple categories (not just one) | Don't trigger (not pure comparison) |
+| Same product viewed 3x | Doesn't count as comparison |
+| 10-minute window edge | Allow ±1 minute tolerance |
+| Customer dismisses widget | Cooldown, don't show again in session |
+| Bot crawler views many products | Filter via bot detection |
+| Category data unavailable | Fall back to product tags matching |
+| Session expires between views | Reset comparison tracking |
+| Customer buys after widget | Track friction_reason + outcome |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Bottom sheet instead of corner pop-in
+- **A11y:** Options keyboard navigable, screen reader announces detection
+- **Salla Integration:** Products API for category matching, session tracking infrastructure (Module 35 Analytics)
+
+#### Effort
+Medium-Large: **6-8 dev days** (session tracking + detection + widget)
+
+---
+
+### 27.16 Module 47 — Customer Bundle Builder (🟠 Phase 2)
+
+#### Description
+Customer selects 3+ products to form a custom bundle with auto-applied discount. Differs from merchant-defined bundles by letting customer choose. Configurable rules (min/max products, eligible categories, discount tiers). Apply discount via Salla Coupons API at checkout. Dashboard surfaces "Top customer-built combinations" to inform official bundle creation.
+
+#### User Flow
+
+```
+[Customer browsing category]
+     ↓
+[Sees "Build Your Bundle" CTA: "اختر 3 منتجات واحصلي على 15% خصم"]
+     ↓
+[Clicks → bundle builder modal opens]
+     ↓
+[Selects products one by one (with eligibility check)]
+     ↓
+[As selections build up, discount tier increases:
+  - 3 products = 10% off
+  - 5 products = 15% off
+  - 7+ products = 20% off
+]
+     ↓
+[Customer clicks "Add Bundle to Cart"]
+     ↓
+[Salla coupon applied automatically at checkout]
+     ↓
+[Conversion tracked + combination logged for analytics]
+```
+
+#### Functional Requirements
+
+- **FR-47.1** Configurable bundle rules: min/max products, eligible categories, discount tiers.
+- **FR-47.2** "Build Bundle" CTA on category pages and homepage (configurable placement).
+- **FR-47.3** Modal: shows currently selected products + remaining slots + current discount tier.
+- **FR-47.4** Eligibility check per product: matches configured categories, in stock.
+- **FR-47.5** Dynamic discount calculation as selections change.
+- **FR-47.6** "Add Bundle to Cart" creates Salla cart entries + applies coupon.
+- **FR-47.7** Coupon code auto-generated per bundle (single-use, 24-hour expiry).
+- **FR-47.8** Dashboard: top customer-built combinations (which products group together?).
+- **FR-47.9** Doctor rule: if combination X built 20+ times, suggest official bundle creation.
+- **FR-47.10** Cancel/restart bundle without affecting current cart.
+
+#### UX Requirements
+
+**Bundle Builder Modal:**
+- Full-screen on mobile, large modal on desktop
+- Progress bar: "1 of 3 selected" → "3 of 3 — 15% discount unlocked!"
+- Visual product cards (selectable)
+- Running total + savings display
+
+**Visual:**
+- Gamified feel: progress bar, "Unlock more!" messaging
+- Confetti animation on milestone (3/5/7 products)
+- Clear CTA to add to cart
+
+#### Configuration
+
+```typescript
+interface BundleBuilderConfig {
+  enabled: boolean;
+  minProducts: number;                     // default 3
+  maxProducts: number;                     // default 10
+  eligibleCategoryIds: string[];
+  discountTiers: {
+    minProducts: number;
+    discountPercent: number;
+  }[];
+  ctaPlacement: ('category' | 'homepage' | 'pdp')[];
+  couponExpiryHours: number;               // default 24
+  trackCombinations: boolean;              // analytics
+}
+```
+
+#### Data Captured
+
+```typescript
+interface BundleCreation {
+  id: string;
+  merchant_id: string;
+  customer_id?: string;
+  session_id: string;
+  products_selected: string[];
+  total_value: number;
+  discount_percent: number;
+  discount_amount: number;
+  coupon_code: string;
+  added_to_cart: boolean;
+  completed_purchase: boolean;
+  order_id?: string;
+  created_at: timestamp;
+}
+```
+
+#### Edge Cases
+
+| Edge Case | Behavior |
+|---|---|
+| Product goes OOS during bundle building | Show notification, allow swap |
+| Customer changes mind on product | Easy remove/swap UI |
+| Bundle creates cart conflict with existing items | Confirm with customer before merge |
+| Coupon expires before checkout | Auto-regenerate or notify |
+| Bundle discount > merchant's max allowed | Cap at merchant's limit |
+| Customer abandons bundle (incomplete) | Save state, allow resume |
+| Same product selected twice (variants) | Treat as separate products |
+| 100+ products in catalog match eligibility | Pagination + search in modal |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Full-screen modal, swipe between product selection
+- **A11y:** Keyboard navigation, screen reader announces tier unlocks
+- **Salla Integration:** Coupons API for auto-coupon, Products API for eligibility, Cart API for bundle insertion
+
+#### Effort
+Large: **8-10 dev days** (complex UI + state management + Coupon integration)
+
+---
+
+### 27.17 Module 48 — Recently Viewed Memory Strip (🟠 Phase 2)
+
+#### Description
+Sticky horizontal strip showing recently viewed products + Dashboard tracking. Helps customers re-find products they didn't purchase. Also generates analytics: which products are viewed but not bought (high-friction signal). **Theme overlap concern:** some Salla themes already show "recently viewed" — our value-add is the Dashboard tracking.
+
+#### User Flow
+
+```
+[Customer browses PDPs A, B, C, D (without buying)]
+     ↓
+[Smart Snippet tracks each view in localStorage]
+     ↓
+[Customer on category page]
+     ↓
+[Sticky strip appears at bottom: "Recently viewed: A B C D"]
+     ↓
+[Click any → returns to that PDP]
+     ↓
+[Analytics: track view-to-purchase conversion per product]
+     ↓
+[Doctor: products with high views but no purchases = signal]
+```
+
+#### Functional Requirements
+
+- **FR-48.1** Track PDP visits in localStorage (max 20 products, FIFO).
+- **FR-48.2** Display sticky strip at bottom of category/homepage (NOT on PDP itself).
+- **FR-48.3** Horizontal scroll for 5+ products.
+- **FR-48.4** Detect if Salla theme already shows recently viewed → skip our strip.
+- **FR-48.5** Click on product → navigate to PDP, track click event.
+- **FR-48.6** Backend tracking: view-to-purchase conversion per product.
+- **FR-48.7** Dashboard widget: "Most viewed, never purchased" products list.
+- **FR-48.8** Doctor signal: high-view + low-purchase products = friction.
+- **FR-48.9** Configurable: position (top/bottom/sidebar), max products shown.
+- **FR-48.10** Dismissible by customer (per session).
+
+#### UX Requirements
+
+**Strip Style:**
+- Sticky bottom (default), 60px height
+- Horizontal scroll if 5+ products
+- Product mini-cards: image + name + price
+- "View All Recently Viewed" link
+
+**Visual:**
+- Subtle: doesn't compete with main content
+- Inherits theme colors
+- Smooth scroll, momentum on mobile
+
+#### Configuration
+
+```typescript
+interface RecentlyViewedConfig {
+  enabled: boolean;
+  maxProductsTracked: number;              // default 20
+  maxProductsDisplayed: number;            // default 8
+  position: 'top' | 'bottom' | 'sidebar';
+  showOnPages: ('homepage' | 'category' | 'cart')[];
+  themeDetection: boolean;                 // skip if theme has this
+  dismissible: boolean;                    // default true
+}
+```
+
+#### Data Captured
+
+```typescript
+interface RecentlyViewedEvent {
+  id: string;
+  merchant_id: string;
+  session_id: string;
+  product_id: string;
+  view_count_in_session: number;
+  added_to_cart: boolean;
+  purchased: boolean;
+  time_to_purchase_minutes?: number;
+  created_at: timestamp;
+}
+```
+
+#### Edge Cases
+
+| Edge Case | Behavior |
+|---|---|
+| LocalStorage cleared | Strip empty until new views |
+| Theme already shows recently viewed | Hide our strip (configurable) |
+| 20+ products viewed in session | FIFO eviction |
+| Customer on private browsing | Strip works in session, lost on close |
+| Product gets deleted | Remove from strip + localStorage |
+| Customer dismissed strip | Hide for session, restore next visit |
+| Mobile viewport too small | Scroll horizontal smoothly |
+| Strip blocks important content | Configurable position |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Bottom strip, swipeable
+- **A11y:** Each product is focusable, keyboard arrow keys to navigate
+- **Salla Integration:** Twilight body hooks (Confirmed), theme detection logic
+
+#### Effort
+Small-Medium: **3-4 dev days**
+
+---
+
+### 27.18 Module 52 — Smart Coupon Discovery (🟠 Phase 2)
+
+#### Description
+Cart-side coupon search + capture of searched non-existent codes. Customer can search for promo codes (e.g., from old emails, influencer mentions). Surfaces valid codes if found, captures invalid searches for merchant intelligence (which codes do customers expect that don't exist?). Reveals demand for promo campaigns.
+
+#### User Flow
+
+```
+[Customer on cart page]
+     ↓
+[Sees "هل لديك كود خصم؟" expandable section]
+     ↓
+[Types: "BLACKFRIDAY2024"]
+     ↓
+[System checks Coupons API]
+     ↓
+[CASE A: Valid code → applied + confirmation]
+[CASE B: Invalid code → "هذا الكود غير صالح" + capture searched code]
+     ↓
+[Dashboard: top searched-but-not-found codes]
+     ↓
+[Doctor: "customers searching X, consider creating that promo"]
+```
+
+#### Functional Requirements
+
+- **FR-52.1** Cart-side coupon search input (collapsible "Have a code?" section).
+- **FR-52.2** Real-time validation via Salla Coupons API.
+- **FR-52.3** Valid code → auto-apply, show savings.
+- **FR-52.4** Invalid code → friendly error + capture in `coupon_searches` table.
+- **FR-52.5** Suggest available active coupons (if any) when invalid entered.
+- **FR-52.6** Dashboard: "Top searched-but-not-found codes" + frequency.
+- **FR-52.7** Doctor rule: if same code searched 10+ times, suggest creating that promo.
+- **FR-52.8** Rate limit: max 5 search attempts per session (prevent abuse).
+- **FR-52.9** Capture context: cart_total, products in cart, source of code search.
+- **FR-52.10** Spam protection: filter common bot patterns.
+
+#### UX Requirements
+
+**Coupon Search UI:**
+- Collapsible "هل لديك كود خصم؟" section in cart
+- Single input + Apply button
+- Inline error/success feedback
+- Suggested active coupons shown when error
+
+**Visual:**
+- Subtle, doesn't dominate cart UI
+- Success: green check + "تم تطبيق الكود! وفّرت X ريال"
+- Error: red text + "الكود غير صالح" + suggest current valid codes
+
+#### Configuration
+
+```typescript
+interface CouponDiscoveryConfig {
+  enabled: boolean;
+  maxAttemptsPerSession: number;           // default 5
+  suggestActiveCouponsOnFail: boolean;     // default true
+  captureSearchedCodes: boolean;           // default true
+  doctorThreshold: number;                 // default 10 searches
+  cartUIPosition: 'top' | 'middle' | 'bottom';
+}
+```
+
+#### Data Captured
+
+```typescript
+interface CouponSearch {
+  id: string;
+  merchant_id: string;
+  searched_code: string;
+  found: boolean;
+  cart_total: number;
+  cart_items_count: number;
+  customer_id?: string;
+  session_id: string;
+  attempt_number: number;
+  resulted_in_purchase: boolean;
+  searched_at: timestamp;
+}
+```
+
+#### Edge Cases
+
+| Edge Case | Behavior |
+|---|---|
+| Customer guesses code 5+ times | Rate limit, show "Too many attempts" |
+| Valid code but expired | Show "This code expired on X" + suggest alternatives |
+| Valid code but min order not met | Show clear message: "كود يحتاج طلب فوق X" |
+| SQL injection attempt | Sanitize, log security event |
+| Same code searched many times globally | Aggregate, flag for merchant attention |
+| Code valid but already applied | Show "Code already applied" |
+| Multiple codes attempted in checkout flow | Track each attempt separately |
+| Influencer-promised code never created | Doctor recommends creating it |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Larger input field, mobile-friendly Apply button
+- **A11y:** Input labeled, errors announced via ARIA live region
+- **Salla Integration:** Coupons API for validation
+
+#### Effort
+Medium: **4-6 dev days**
+
+---
+
+### 27.19 Module 53 — Shipping Transparency Calculator (🟠 Phase 2)
+
+#### Description
+Pre-checkout shipping cost calculator on PDP and Cart. Reduces checkout abandonment from shipping cost surprise (most common cart abandonment reason globally). Auto-detects city from IP or asks customer to select. Shows "add X SAR for free shipping" progress bar to encourage AOV growth.
+
+#### User Flow
+
+```
+[Customer on PDP or cart]
+     ↓
+[Smart Snippet detects city from IP (or asks)]
+     ↓
+[Calls Salla Shipping API for shipping options to that city]
+     ↓
+[Displays:
+  - Shipping options + prices
+  - Free shipping threshold (if any)
+  - Progress bar: "أضف 23 ر.س للشحن المجاني"
+]
+     ↓
+[Customer adds more → progress bar updates]
+     ↓
+[Customer reaches threshold → "🎉 شحن مجاني!"]
+```
+
+#### Functional Requirements
+
+- **FR-53.1** Detect customer city via IP geolocation (default).
+- **FR-53.2** Fallback: ask customer to select city if detection unreliable.
+- **FR-53.3** Call Salla Shipping API to get options + prices for that destination.
+- **FR-53.4** Display options inline on PDP and cart (collapsible widget).
+- **FR-53.5** Show "free shipping at X ر.س" badge if threshold exists.
+- **FR-53.6** Progress bar updates as cart total changes.
+- **FR-53.7** "🎉 شحن مجاني!" celebration when threshold reached.
+- **FR-53.8** Cache shipping data per city for 24 hours (performance).
+- **FR-53.9** Doctor signal: track shipping cost objection rate (customers abandoning due to shipping).
+- **FR-53.10** A/B test: with vs without calculator (impact on AOV + cart completion).
+
+#### UX Requirements
+
+**Widget Style:**
+- Collapsible (expanded by default)
+- Truck/delivery icon
+- City selector (dropdown with auto-detect highlighted)
+- Shipping options as cards
+
+**Progress Bar:**
+- Visual fill animation as cart grows
+- Color shifts: red (far) → yellow (close) → green (achieved)
+- Celebration animation at threshold
+
+#### Configuration
+
+```typescript
+interface ShippingCalculatorConfig {
+  enabled: boolean;
+  autoDetectCity: boolean;
+  fallbackToManualSelect: boolean;
+  showOnPages: ('pdp' | 'cart')[];
+  freeShippingThreshold?: number;          // from merchant settings
+  progressBarEnabled: boolean;
+  cacheHours: number;                      // default 24
+}
+```
+
+#### Data Captured
+
+```typescript
+interface ShippingCalculation {
+  id: string;
+  merchant_id: string;
+  session_id: string;
+  customer_id?: string;
+  detected_city: string;
+  manually_selected_city?: string;
+  cart_total: number;
+  cheapest_shipping_cost: number;
+  free_shipping_threshold?: number;
+  reached_free_threshold: boolean;
+  resulted_in_purchase: boolean;
+  shipping_method_chosen?: string;
+  created_at: timestamp;
+}
+```
+
+#### Edge Cases
+
+| Edge Case | Behavior |
+|---|---|
+| IP geolocation fails | Show manual selector immediately |
+| City has no shipping option | Show "Shipping unavailable" + suggest alternatives |
+| Merchant changes shipping rates | Invalidate cache, refresh |
+| Customer changes city mid-session | Recalculate, update progress |
+| Salla Shipping API down | Show generic message, hide calculator |
+| Free shipping threshold removed | Hide progress bar gracefully |
+| International shipping | Configurable: enable/disable |
+| VPN user with mismatched IP | Allow manual override |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Collapsed by default to save space, expandable
+- **A11y:** City selector accessible, progress bar has descriptive label
+- **Salla Integration:** Shipping API (⚠️ **VERIFY AVAILABILITY** in Salla merchant API docs)
+
+#### Effort
+Medium: **5-7 dev days** (contingent on Salla Shipping API)
+
+---
+
+### 27.20 Module 56 — Free Sample / Trial Request (🟠 Phase 2)
+
+#### Description
+Sample request workflow for high-AOV products (e.g., >500 SAR perfumes, skincare). Reduces purchase risk for premium products by allowing customers to try before committing. Eligible products configurable. Sample creates lightweight Salla order with sample SKU + tracks sample-to-full-purchase conversion. Includes operational workflow for merchant.
+
+#### User Flow
+
+```
+[Customer on high-AOV PDP (>500 SAR threshold)]
+     ↓
+[Sees "Try a sample first" CTA next to Add to Cart]
+     ↓
+[Clicks → sample request modal]
+     ↓
+[Modal:
+  - Product info (parent)
+  - Sample size/type
+  - Shipping address form
+  - "Free with X SAR shipping" or "Cost X SAR"
+]
+     ↓
+[Submits → creates lightweight Salla order with sample SKU]
+     ↓
+[Merchant fulfills sample]
+     ↓
+[Follow-up: 7-14 days later, "Did you love it? Buy full size"]
+     ↓
+[Conversion tracked: sample → full purchase]
+```
+
+#### Functional Requirements
+
+- **FR-56.1** Eligibility detection: products with `sample_eligible` tag or price > configurable threshold.
+- **FR-56.2** "Try a sample" CTA on eligible PDPs (configurable position).
+- **FR-56.3** Sample request modal: product, sample variant, shipping address.
+- **FR-56.4** Create Salla order with parent_product_id + sample_sku.
+- **FR-56.5** Sample fulfillment tracked separately from regular orders.
+- **FR-56.6** Auto follow-up email/WhatsApp 7-14 days after delivery: "Buy full size now?"
+- **FR-56.7** Track sample → full purchase conversion (attribution window 30 days).
+- **FR-56.8** Dashboard: sample requests, fulfilled count, conversion rate, revenue attribution.
+- **FR-56.9** Merchant settings: which products eligible, sample cost (free/paid), max samples per customer.
+- **FR-56.10** Customer profile flag: "Sample requestor" for targeted campaigns.
+
+#### UX Requirements
+
+**Sample CTA on PDP:**
+- Secondary CTA (not competing with main "Add to Cart")
+- Clear: "🧪 جربيها أولاً — عينة مجانية"
+- Eligibility indicator
+
+**Sample Request Modal:**
+- Trust signals: "ستصلك خلال X أيام"
+- Clear address form
+- Optional skin/preference questions
+- Submit + confirmation
+
+**Follow-up Notification:**
+- Warm: "كيف كانت تجربتك مع العينة؟"
+- CTA: "اطلبي الحجم الكامل بـ X ر.س"
+- Discount incentive
+
+#### Configuration
+
+```typescript
+interface SampleRequestConfig {
+  enabled: boolean;
+  eligibilityRules: {
+    priceThreshold: number;                // default 500
+    tagsRequired: string[];                // e.g., ['sample_eligible']
+  };
+  sampleCost: number;                      // 0 for free
+  maxSamplesPerCustomer: number;           // default 3
+  followUpDelayDays: number;               // default 7
+  followUpDiscountPercent: number;         // default 10
+  fulfillmentMethod: 'merchant_manual' | 'auto_order';
+}
+```
+
+#### Data Captured
+
+```typescript
+interface SampleRequest {
+  id: string;
+  merchant_id: string;
+  customer_id?: string;
+  customer_phone_hash: string;
+  parent_product_id: string;
+  sample_sku?: string;
+  shipping_address: object;
+  sample_order_id?: string;                // Salla order
+  fulfillment_status: 'pending' | 'fulfilled' | 'delivered';
+  delivered_at?: timestamp;
+  followup_sent_at?: timestamp;
+  followup_clicked_at?: timestamp;
+  full_purchase_order_id?: string;
+  attribution_revenue?: number;
+  created_at: timestamp;
+}
+```
+
+#### Edge Cases
+
+| Edge Case | Behavior |
+|---|---|
+| Customer already requested sample for same product | Show "أنتِ بالفعل طلبتِ عينة لهذا المنتج" |
+| Sample stock depleted | Show "Samples unavailable" + offer regular product |
+| Customer reaches max samples limit | Show limit reached message |
+| Customer doesn't engage with follow-up | Track silent failure, retry once |
+| Customer buys full size before follow-up | Skip follow-up, mark converted |
+| Sample shipping cost too high | Make configurable, may need to bundle samples |
+| Merchant deactivates sample for product | Hide CTA immediately |
+| Address validation fails | Friendly error, suggest alternatives |
+
+#### Mobile, Accessibility & Integration
+
+- **Mobile:** Modal full-screen, simplified form
+- **A11y:** Form fields labeled, address validation messages announced
+- **Salla Integration:** Orders API for sample order creation, custom SKU tagging
+
+#### Effort
+Large: **8-10 dev days** (includes merchant operational workflow + follow-up automation)
+
+---
+### 27.21 Expanded MVP Total Effort Estimate
 
 | Phase | Modules | Total Effort |
 |---|---|---|
@@ -3589,7 +4637,7 @@ These 10 modules remain in Phase 2 roadmap (Months 10-18 post-MVP launch). Specs
 
 **With 2 devs (founder + junior) working in parallel:** ~20-22 weeks total MVP timeline.
 
-### 27.13 Critical Path Items
+### 27.22 Critical Path Items
 
 Items that can block multiple modules:
 1. **Salla checkout customization verification** — blocks Phase 2 Modules 37, 43, potentially 53.
@@ -3598,7 +4646,7 @@ Items that can block multiple modules:
 4. **Salla Shipping API availability** — blocks Phase 2 Module 53.
 5. **Session tracking infrastructure** — needed for Phase 2 Module 45.
 
-### 27.14 Risks and Mitigations for Expanded MVP
+### 27.23 Risks and Mitigations for Expanded MVP
 
 | Risk | Mitigation |
 |---|---|
