@@ -1227,17 +1227,385 @@ Top objections:
 
 ---
 
-### 📋 الملخص الكامل — توزيع كل الـ 36 Snippet
+---
+
+### 🆕 EXTENSION LIBRARY — 10 سنيبيتس إضافية (Modules 37-46)
+
+> هذه الـ 10 snippets الجديدة مبنية على أفكار طرحت في محادثاتنا (PDPL، Salla webhooks المؤكدة، tracking الـ comparison، mobile-first، إلخ) لكنها لم تصبح modules منفصلة في الـ 36 الأصلية.
+
+---
+
+#### Module 37 — Checkout Hesitation Capture (🟠 Phase 2 — ⚠️ يحتاج verification تقني)
+**🎯 الوظيفة:** التقاط أسباب التردد في صفحة الـ Checkout بالذات — جمهور مختلف عن Module 4 (هؤلاء وصلوا قبل خطوة من الشراء)
+**📌 متى يظهر:** Exit Intent على صفحة Checkout (إن تيسّر) أو على exit من Cart كبديل
+**🔧 الموقع التقني:** ⚠️ **Salla Twilight hooks موثقة على Cart و Body، لكن Checkout pages specific hooks غير موثقة بوضوح.** قبل البناء: اختبار فعلي على متجر developer للتأكد من إمكانية الحقن. البديل الآمن: نقل Exit Intent إلى آخر خطوة في الـ Cart قبل الانتقال للـ Checkout.
+
+**💬 مثال UI:**
+```
+╔══════════════════════════════════╗
+║   لحظة — قبل ما تغادر الدفع       ║
+║                                  ║
+║   ما الذي يمنعك من إكمال الطلب؟   ║
+║                                  ║
+║   ⚪ تكلفة الشحن مرتفعة            ║
+║   ⚪ خيارات الدفع لا تناسبني       ║
+║   ⚪ السعر الإجمالي غير متوقع       ║
+║   ⚪ لست متأكد من الأمان           ║
+║   ⚪ أحتاج كود خصم                 ║
+║   ⚪ سأكمل لاحقًا                  ║
+║                                  ║
+║   [ تخطي ]    [ إرسال ]            ║
+╚══════════════════════════════════╝
+```
+
+**📊 Dashboard:** "Checkout drop reasons: 45% الشحن، 28% الدفع، 15% الأمان"
+**🏪 Use Case:** متجر يكتشف 45% drop بسبب الشحن → يضيف free shipping bar → CVR في checkout يرتفع 12%
+
+---
+
+#### Module 38 — Empty Search Capture (🟡 Phase 1)
+**🎯 الوظيفة:** التقاط ما يبحث عنه العميل ولا يجده — **إشارة طلب مباشرة على inventory مفقود**
+**📌 متى يظهر:** صفحة "لا توجد نتائج" بعد بحث المتجر
+**🔧 الموقع التقني:** كشف empty search state عبر page hooks
+
+**💬 مثال UI:**
+```
+╔══════════════════════════════════╗
+║   لم نجد "[كلمة البحث]"           ║
+║                                  ║
+║   نريد توفير ما تبحث عنه!         ║
+║                                  ║
+║   📱 رقم الجوال (اختياري):         ║
+║   ┌────────────────────────────┐ ║
+║   │ +966 5_ _ _ _ _ _ _        │ ║
+║   └────────────────────────────┘ ║
+║                                  ║
+║   ☐ أوافق وفق نظام PDPL           ║
+║                                  ║
+║          [ احفظ طلبي ]            ║
+╚══════════════════════════════════╝
+```
+
+**📊 Dashboard:** "Top missed searches: 'فستان أحمر مقاس S' (12)، 'كريم بشرة دهنية' (8)، 'عطر مسك أبيض' (25)"
+**🏪 Use Case:** متجر عطور يرى 25 بحث على منتج غير متوفر → reorder priority واضحة + مخزون مدفوع بالطلب الحقيقي
+
+---
+
+#### Module 39 — First-Time vs Returning Recognition (🟡 Phase 1)
+**🎯 الوظيفة:** ترحيب مختلف للزوار الجدد vs العائدين، مع pre-tag للنية من أول لحظة
+**📌 متى يظهر:** Top of page عند الزيارة (مرة واحدة لكل visitor)
+**🔧 الموقع التقني:** ✅ Cookie + Salla customer login state — Twilight SDK يعطي customer info *(Confirmed)*
+
+**💬 First-Time UI:**
+```
+╔══════════════════════════════════╗
+║  👋 أهلًا بأول زيارة!              ║
+║                                  ║
+║  شو تبحث/ين عنه؟                  ║
+║                                  ║
+║   🎁 هدية لشخص معين                ║
+║   💄 منتج لي شخصيًا                ║
+║   🔍 لسه أتصفح فقط                ║
+║                                  ║
+║          [ ابدأ التسوق ]          ║
+╚══════════════════════════════════╝
+```
+
+**💬 Returning UI (banner):**
+```
+👋 مرحبًا فاطمة — آخر شي شاهدتيه: Vitamin C Serum
+[ متابعة من حيث توقفتي → ]
+```
+
+**📊 Dashboard:** "First-time visitor intents: 35% gifts، 50% personal، 15% browse" → segmentation للحملات
+**🏪 Use Case:** متجر هدايا يكتشف 35% gift intent → يحسن gift discovery flow
+
+---
+
+#### Module 40 — PDPL Consent Management Center (🟢 MVP — إلزامي قانونًا)
+**🎯 الوظيفة:** بوابة العميل لإدارة بياناته الشخصية — **إلزامي بموجب نظام PDPL السعودي**
+**📌 متى يظهر:** Link في footer "إدارة بياناتي" + في كل إيميل/WhatsApp إشعار
+**🔧 الموقع التقني:** Public URL `/consent/manage?token=jwt`
+
+**💬 مثال UI:**
+```
+╔══════════════════════════════════════════╗
+║  🔐 إدارة بياناتي                          ║
+║                                          ║
+║  بياناتك المسجلة:                          ║
+║  📱 جوال: 050****567                      ║
+║  📧 إيميل: f***@gmail.com                  ║
+║                                          ║
+║  إشاراتك النشطة:                          ║
+║  • Vitamin C Serum (نزول سعر إلى 149)     ║
+║    [ إلغاء ]                              ║
+║  • Black Maxi Dress (variant L)           ║
+║    [ إلغاء ]                              ║
+║                                          ║
+║  ━━━━━━━━━━━━━━━━━━━━━━━━━━            ║
+║  حقوقك:                                   ║
+║  [ تنزيل بياناتي ]                        ║
+║  [ حذف كل بياناتي ]                       ║
+║  [ سحب الموافقة ]                         ║
+╚══════════════════════════════════════════╝
+```
+
+**⚖️ ملاحظة قانونية:** هذا **ليس feature اختياري** — مطلوب لتجنب غرامات SDAIA (48 قرار مخالفة منذ 2024)
+**🏪 Use Case:** عميل يطلب حذف بياناته → URL → زر → حذف cascade + audit log + email تأكيد
+
+---
+
+#### Module 41 — Live Stock Urgency Signal (🟠 Phase 2 — ⚠️ تداخل جزئي)
+**🎯 الوظيفة:** عرض ندرة المخزون **بشفافية** (مش fake urgency مثل أدوات popup التقليدية)
+**📌 متى يظهر:** PDP عندما المخزون منخفض **حقيقيًا**
+**🔧 الموقع التقني:** يستهلك webhook `product.quantity.low` *(Confirmed)*
+
+**⚠️ تنبيه Native Overlap:** بعض ثيمات سلة تعرض "بقي X قطعة" تلقائيًا عند الـ low stock *(غير موحد عبر الـ themes)*. القيمة المضافة عندنا = **الـ combo (stock + "X customers viewed today")** الذي لا يعرضه أي theme. قبل تفعيل widget على متجر، نتحقق من theme المرشانت ونتجنب التكرار.
+
+**💬 مثال UI:**
+```
+╔══════════════════════════════════╗
+║  ⚠️ بقي 3 قطع فقط                  ║
+║  + 8 عملاء أضافوا للسلة اليوم       ║
+║                                  ║
+║  💡 الـ variant الأكثر طلبًا       ║
+║      هو [اللون - L]                ║
+╚══════════════════════════════════╝
+```
+
+**📌 ميزة مهمة:** الأرقام **حقيقية ومن بيانات سلة**. لا نخترع. هذا يميزنا عن أدوات popup التقليدية.
+**📊 Dashboard:** "Live urgency widgets: 14 منتج نشط، CVR boost +18% على هذه المنتجات"
+**🏪 Use Case:** Fashion store — منتج نافد، رسالة شفافة ترفع CVR بدون misleading
+
+---
+
+#### Module 42 — Mobile One-Tap Interest (Anonymous) (🟠 Phase 2 — ⚠️ تداخل واضح، يحتاج positioning)
+**🎯 الوظيفة:** حفظ اهتمام بنقرة واحدة على الجوال — **بدون نموذج، بدون PII، Anonymous**
+**📌 متى يظهر:** Sticky button على PDP بالجوال فقط
+**🔧 الموقع التقني:** Cookie/localStorage tracking + Twilight mobile detection
+
+**🔴 تنبيه Native Overlap (مهم):** سلة عندها **Wishlist native كامل** *(Confirmed من [docs.salla.dev/422565m0](https://docs.salla.dev/422565m0))* — صفحة Wishlist مخصصة، حفظ منتجات، نقل لـ Cart. هذا تداخل **واضح**.
+
+**🎯 استراتيجية التميّز (الحفاظ على هذه القيمة):**
+
+| Salla Wishlist Native | Module 42 (نحن) |
+|---|---|
+| ❌ يحتاج تسجيل دخول | ✅ Anonymous (cookie فقط) |
+| ❌ Volume منخفض (login friction) | ✅ Volume أعلى ~5x |
+| ❌ لا dashboard للتاجر | ✅ Insights للـ Doctor |
+| ❌ لا intent aggregation | ✅ بيانات intent مجمعة |
+
+**Positioning صارم:**
+> "Anonymous Interest Layer — يكمل Salla Wishlist (لا ينافسها). للمتاجر mobile-heavy التي تريد التقاط signals بدون login friction."
+
+**شرط البناء:** اختبار حقيقي خلال Phase 2 لقياس incremental volume فعليًا مقابل Wishlist native. لو الفرق <2x، نلغي ونكتفي بـ Wishlist native + Module 7.
+
+**💬 مثال UI (sticky bottom bar على الجوال):**
+```
+[♡ اهتم بهذا]  [🛒 أضف للسلة]
+```
+
+**عند النقر على ♡:**
+```
+✅ تم الحفظ
+سنذكرك بهذا المنتج لاحقًا في زيارتك القادمة
+(بدون إدخال بيانات)
+```
+
+**📊 Dashboard:**
+- "Anonymous interest: 234 على Vitamin C Serum"
+- "مقارنة: registered interest = 47، anonymous = 234 → 5x volume"
+- Insight: المنتجات الأكثر "حفظ anonymous" — إشارة قوية على demand
+
+**🏪 Use Case:** متجر mobile-heavy (90% mobile traffic) — يجمع 5x signals مقارنة بالـ Lead Capture التقليدي
+
+---
+
+#### Module 43 — Pre-Checkout Confidence Booster (🟠 Phase 2)
+**🎯 الوظيفة:** آخر فرصة لإزالة التردد قبل النقر على "إكمال الطلب"
+**📌 الفرق عن Module 19 (Trust):** Module 19 على PDP. هذا على الـ checkout — نقطة decision حرجة.
+**📌 متى يظهر:** فوق "Place Order" button على صفحة الـ checkout
+**🔧 الموقع التقني:** Twilight checkout hooks — **Needs verification**
+
+**💬 مثال UI:**
+```
+╔══════════════════════════════════╗
+║  قبل ما تكمل الطلب:                ║
+║                                  ║
+║  ✅ شحن مجاني للطلبات +200 ر.س     ║
+║  ✅ استرداد مضمون خلال 14 يوم       ║
+║  ✅ دفع آمن — تابي/تمارا متاحة      ║
+║  ✅ تواصل عبر واتساب أي وقت        ║
+║                                  ║
+║  لديك سؤال أخير؟                  ║
+║  [ تواصل سريع عبر واتساب ]        ║
+╚══════════════════════════════════╝
+```
+
+**📊 Dashboard:** "Checkout confidence widget: 1,247 views، 23 WhatsApp clicks، +0.4% CVR boost"
+**🏪 Use Case:** Luxury/high-AOV stores — رفع CVR في آخر خطوة حيث كل 1% = $$$
+
+---
+
+#### Module 44 — Smart Reorder Timing (🟠 Phase 2)
+**🎯 الوظيفة:** تذكير ذكي للعملاء بإعادة الطلب بناءً على **نوع المنتج وتاريخ الطلب الأخير**
+**📌 الفرق عن Module 24 (Returning Customer):** Module 24 يرحّب. هذا proactive — يبادر بإشعار قبل ما يفكر العميل.
+**📌 متى يظهر:** WhatsApp/Email بعد عدد أيام محسوب لكل category منتج
+**🔧 الموقع التقني:** يستهلك Salla orders API + cron job يومي
+
+**📅 أمثلة Timing الافتراضي:**
+| نوع المنتج | Trigger after |
+|---|---|
+| Cosmetics serum (30ml) | 60 يوم |
+| Shampoo (250ml) | 45 يوم |
+| Supplements (شهر) | 28 يوم |
+| Perfume (100ml) | 90 يوم |
+| Vitamin (60 capsule) | 55 يوم |
+
+**💬 مثال WhatsApp:**
+```
+مرحبًا فاطمة 👋
+
+طلبتي Vitamin C Serum قبل 60 يوم تقريبًا.
+عادة يخلص في هذا الوقت.
+
+طلب جديد بنقرة واحدة؟
+[ إعادة الطلب ] | [ ذكّريني لاحقًا ]
+
+— BeautyHub
+```
+
+**📊 Dashboard:** "Reorder reminders sent this week: 124 — Reorder rate: 22% — Revenue from reminders: 8,400 ر.س"
+**🏪 Use Case:** متجر cosmetics — repeat purchase rate يرتفع 35%، LTV per customer يرتفع 28%
+
+---
+
+#### Module 45 — Comparison Shopping Detector (🟠 Phase 2)
+**🎯 الوظيفة:** كشف العميل الذي **يقارن بين منتجات** في نفس الجلسة + التدخل بـ help
+**📌 الفرق عن Module 18 (Product Comparison):** Module 18 أداة manual للعميل. هذا automatic detection.
+**📌 متى يظهر:** بعد رؤية 3+ PDPs في نفس الفئة خلال 10 دقائق
+**🔧 الموقع التقني:** Session tracking + category matching backend logic
+
+**💬 مثال UI:**
+```
+╔══════════════════════════════════╗
+║  🤔 محتار/ة بين هذه المنتجات؟      ║
+║                                  ║
+║  لاحظنا تتصفحين فساتين عدة.        ║
+║  ما الذي يصعب عليكِ القرار؟         ║
+║                                  ║
+║   ⚪ المقاس / الفت                ║
+║   ⚪ السعر                        ║
+║   ⚪ القماش/الخامة                 ║
+║   ⚪ المناسبة المستهدفة            ║
+║   ⚪ اللون                        ║
+║                                  ║
+║  [ ساعديني أختار ] [ تخطي ]       ║
+╚══════════════════════════════════╝
+```
+
+**📊 Dashboard:**
+- "Comparison shoppers detected: 234/week"
+- "Top struggle: pricing (38%)، fit (24%)، quality (18%)"
+- Doctor recommendation: "أضف Product Comparison snippet على هذه الفئة"
+
+**🏪 Use Case:** Fashion store يرى 38% comparison shoppers يحتارون بالسعر → يطلق Compare Snippet مع price-quality breakdown → CVR لـ comparison shoppers يرتفع 22%
+
+---
+
+#### Module 46 — Vertical Discovery Quiz (Preference Profile) (🟡 Phase 1)
+**🎯 الوظيفة:** quiz قصيرة لاكتشاف **تفضيلات العميل لنفسه**، تبني preference profile
+**📌 الفرق عن Module 15 (Gift Finder):** Gift Finder للهدايا لـ شخص آخر. هذا للتسوق الذاتي.
+**📌 متى يظهر:** Floating button + first-time visitor experience (إذا اختار "منتج لي شخصيًا" من Module 39)
+**🔧 الموقع التقني:** Quiz engine + customer profile storage
+
+**💬 أمثلة بحسب القطاع:**
+
+**Beauty/Cosmetics:**
+```
+🌟 اعرفي بشرتك خلال 60 ثانية
+
+1. نوع بشرتك:
+   ⚪ دهنية  ⚪ جافة  ⚪ مختلطة  ⚪ عادية
+
+2. مشاكلك الرئيسية (اختاري كل ما ينطبق):
+   ☐ حبوب  ☐ تجاعيد  ☐ تصبغ  ☐ جفاف
+
+3. روتينك الحالي:
+   ⚪ بسيط (1-2 منتج)
+   ⚪ متوسط (3-5)
+   ⚪ متقدم (6+)
+
+→ يولّد: "Skin Profile" + توصيات منتجات مخصصة
+```
+
+**Fashion:**
+```
+👗 اعرفي ستايلك
+
+1. مناسبات التسوق: [يومي / عمل / مناسبات / كلها]
+2. الستايل المفضل: [كلاسيك / كاجوال / ترندي / محتشم]
+3. مقاسك الأساسي: [XS / S / M / L / XL / XXL]
+
+→ يولّد: "Style Profile" + فلتر المنتجات بناءً عليه
+```
+
+**Perfumes:**
+```
+🌹 اكتشفي عطركِ المثالي
+
+1. الأجواء المفضلة: [شرقي / فرنسي / منعش / زهري]
+2. التركيز: [EDT / EDP / Parfum]
+3. التوقيت: [نهاري / مسائي / كلاهما]
+
+→ يولّد: "Scent Profile" + توصيات
+```
+
+**📊 Dashboard:**
+- "Skin profiles collected: 547"
+- "Top skin type: مختلطة (32%)، دهنية (28%)، جافة (22%)"
+- "Customers with profile have 2.3x repeat purchase rate"
+
+**🏪 Use Case:** Beauty store يستخدم Skin Profile لـ:
+- Email campaigns مستهدفة (e.g., "منتجات للبشرة الدهنية فقط")
+- Product recommendations مخصصة على PDP
+- Targeted Doctor recommendations للمنتجات المناسبة
+
+---
+
+### 📋 الملخص الكامل — توزيع كل الـ 46 Snippet (محدث بعد التحقق Live من سلة)
 
 | Scope | عدد | الـ Snippets |
 |---|---|---|
-| 🟢 Scope 0 — MVP | 8 | 4, 17, 7, 8, 32, 34, 35 (+5 موقوف لـ Phase 1) |
-| 🟡 Scope 1 — Phase 1 | 11 | 5, 8 (part), 22, 9, 33, 12, 19, 23, 10, 26, 31 |
-| 🟠 Scope 2 — Phase 2 | 8 | 3, 24, 1, 2, 11, 20, 13, 18 |
+| 🟢 Scope 0 — MVP | 9 | 4, 17, 7, 8, 32, 34, 35 + **40** (PDPL Center إلزامي) + 5 موقوف |
+| 🟡 Scope 1 — Phase 1 | 14 | 5, 8 (part), 22, 9, 33, 12, 19, 23, 10, 26, 31 + **38** (Empty Search) + **39** (First-Time vs Returning) + **46** (Discovery Quiz) |
+| 🟠 Scope 2 — Phase 2 | 14 | 3, 24, 1, 2, 11, 20, 13, 18 + **37** (Checkout Hesitation) + **41** (Live Stock — overlap care) + **42** (Mobile One-Tap — overlap care) + **43** (Pre-Checkout) + **44** (Smart Reorder) + **45** (Comparison Detector) |
 | 🔵 Scope 3 — Phase 3 | 3 | 36, 30, 21 |
 | ⚫ Scope 4 — Sister Products | 8 | 6, 14, 15, 16, 25, 27, 28, 29 |
 
-**المجموع: 36 snippet، 0 محذوف، كل واحد له مكان استراتيجي ومثال UI ملموس.**
+**المجموع: 46 snippet (36 أصلي + 10 إضافي)، 0 محذوف، كل واحد له مكان استراتيجي.**
+
+### 🆕 الـ 10 الإضافية — Quick Reference (بعد التحقق)
+
+| # | الاسم | Scope | Native Overlap | Tech Verified | الحكم |
+|---|---|---|---|---|---|
+| 37 | Checkout Hesitation Capture | 🟠 Phase 2 | ❌ لا | ⚠️ يحتاج تحقق | آمن مع verification |
+| 38 | Empty Search Capture | 🟡 Phase 1 | ❌ لا | ✅ مؤكد (`.s-search-no-results`) | 🟢 آمن |
+| 39 | First-Time vs Returning | 🟡 Phase 1 | ❌ لا | ✅ مؤكد | 🟢 آمن |
+| 40 | PDPL Consent Center | 🟢 **MVP** | ❌ لا | ✅ URL خاصة بنا | 🟢 إلزامي |
+| 41 | Live Stock Urgency | 🟠 Phase 2 | ⚠️ بعض الـ themes | ✅ webhook مؤكد | 🟠 تداخل جزئي |
+| 42 | Mobile One-Tap Interest | 🟠 Phase 2 | 🔴 **Salla Wishlist** | ✅ مؤكد | 🔴 يحتاج positioning |
+| 43 | Pre-Checkout Confidence | 🟠 Phase 2 | ❌ لا | ⚠️ يحتاج تحقق | آمن مع verification |
+| 44 | Smart Reorder Timing | 🟠 Phase 2 | ❌ لا | ✅ Orders API مؤكد | 🟢 آمن |
+| 45 | Comparison Shopping Detector | 🟠 Phase 2 | ❌ لا | ✅ session tracking | 🟢 آمن |
+| 46 | Vertical Discovery Quiz | 🟡 Phase 1 | ❌ لا | ✅ مؤكد | 🟢 آمن |
+
+### 🎯 ملخص التحقق
+
+- **6 آمنة 100٪** (38, 39, 40, 44, 45, 46) — جاهزة للبناء
+- **2 تحتاج verification تقني** (37, 43) — checkout pages hooks
+- **2 تداخل مع Salla native** (41 stock، 42 wishlist) — يحتاجون positioning واضح أو حذف
+- **التوصية:** Module 42 يبقى في Phase 2 بـ positioning صارم، مع kill criterion (إذا volume <2x من Wishlist native، نلغيه)
 
 ---
 
