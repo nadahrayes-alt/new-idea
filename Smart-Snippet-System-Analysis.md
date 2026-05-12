@@ -1573,24 +1573,315 @@ Top objections:
 
 ---
 
-### 📋 الملخص الكامل — توزيع كل الـ 46 Snippet (محدث بعد التحقق Live من سلة)
+---
+
+### 🚀 EXTENSION LIBRARY 2 — 10 سنيبيتس إضافية (Modules 47-56)
+
+> الدفعة الثانية: snippets تغطي gaps في journey العميل (bundle building, OOS recovery, social commerce, influencer attribution, pre-launch, samples). كل واحد تم فحصه ضد سلة native.
+
+---
+
+#### Module 47 — Customer Bundle Builder (🟠 Phase 2)
+**🎯 الوظيفة:** العميل يبني bundle بنفسه من 3+ منتجات — يلتقط combinations preferences لم يفكر فيها التاجر
+**📌 الفرق عن Module 20 (AOV Booster):** Module 20 يقترح cross-sell جاهز. هذا يدع العميل يختار.
+**📌 متى يظهر:** PDP أو cart مع منتجات قابلة للـ bundling
+**🔧 الموقع التقني:** Twilight hooks + products API
+
+**💬 مثال UI:**
+```
+╔══════════════════════════════════╗
+║  🎁 ابني bundle خاص بك            ║
+║                                  ║
+║  اختر 3 منتجات من نفس الفئة:      ║
+║                                  ║
+║  ✅ Vitamin C Serum (199 ر.س)     ║
+║  ✅ Hyaluronic Acid (179 ر.س)     ║
+║  ⬜ اختر المنتج الثالث →         ║
+║                                  ║
+║  💰 السعر: 567 → 489 (-13%)       ║
+║                                  ║
+║       [ أضف للسلة ]               ║
+╚══════════════════════════════════╝
+```
+
+**📊 Dashboard:** "Top customer-built combos: Vitamin C + Hyaluronic + Niacinamide (47 طلب)" — يكشف combinations لم يفكر بها التاجر
+**🏪 Use Case:** متجر beauty يكتشف combination popular → يطلق bundle رسمي مدفوع ببيانات حقيقية
+
+---
+
+#### Module 48 — Recently Viewed Memory Strip (🟡 Phase 1 — ⚠️ تداخل جزئي)
+**🎯 الوظيفة:** يعرض المنتجات التي شاهدها العميل مؤخرًا + يتتبع للـ Dashboard
+**📌 متى يظهر:** Sticky horizontal strip في bottom of page
+**🔧 الموقع التقني:** localStorage + Twilight body hooks
+
+**⚠️ تنبيه Native Overlap:** بعض ثيمات سلة تعرض "آخر ما شاهدت" تلقائيًا. القيمة المضافة عندنا = **تتبع للـ Dashboard** (المنتجات الأكثر مشاهدة بدون شراء = signal مهم).
+
+**💬 مثال UI (sticky strip):**
+```
+👀 شاهدتيها مؤخرًا:
+[Img] [Img] [Img] [Img] [→ المزيد]
+```
+
+**📊 Dashboard:** "Most-viewed-then-abandoned: Vitamin C Serum (234 views، 47 add-to-cart، 12 sales)"
+**🏪 Use Case:** Doctor يكتشف منتج عليه high view لكن low conversion → recommends content improvements
+
+---
+
+#### Module 49 — Birthday/Anniversary Capture (🟡 Phase 1)
+**🎯 الوظيفة:** التقاط تواريخ شخصية للحملات المخصصة (عيد ميلاد، ذكرى زواج، تخرج)
+**📌 متى يظهر:** Post-checkout أو في customer profile area
+**🔧 الموقع التقني:** يحتاج تحقق من Salla customer fields — **Needs verification**
+
+**💬 مثال UI:**
+```
+╔══════════════════════════════════╗
+║  🎉 لنحتفل بكِ!                    ║
+║                                  ║
+║  📅 متى عيد ميلادك؟ (اختياري)      ║
+║   ┌──────────┐                    ║
+║   │ DD / MM  │                    ║
+║   └──────────┘                    ║
+║                                  ║
+║  📅 ذكرى مناسبة خاصة؟              ║
+║   ┌──────────┐                    ║
+║   │ DD / MM  │                    ║
+║   └──────────┘                    ║
+║                                  ║
+║  سنرسل لك مفاجأة في يومك! 🎁      ║
+║                                  ║
+║          [ احفظ ]                 ║
+╚══════════════════════════════════╝
+```
+
+**📊 Dashboard:** "Birthdays this month: 47 → email/WhatsApp مع gift code"
+**🏪 Use Case:** متجر cosmetics — birthday email يحقق 3x CTR من generic + يبني loyalty عاطفي
+
+---
+
+#### Module 50 — Out-of-Stock Substitute Engine (🟠 Phase 2)
+**🎯 الوظيفة:** عند OOS، يقترح بدائل مشابهة فورًا + يلتقط تفضيل العميل (بديل أم انتظار)
+**📌 الفرق عن Module 8 (Restock alerts):** Module 8 يحفظ الانتظار. هذا يحاول conversion immediate.
+**📌 متى يظهر:** PDP لمنتج OOS
+**🔧 الموقع التقني:** Products API + recommendation logic
+
+**💬 مثال UI:**
+```
+╔══════════════════════════════════╗
+║  😔 هذا المنتج نفد حاليًا           ║
+║                                  ║
+║  هل تجربين بدائل مشابهة؟          ║
+║                                  ║
+║  [Img] منتج بديل 1 — 189 ر.س      ║
+║  [Img] منتج بديل 2 — 219 ر.س      ║
+║  [Img] منتج بديل 3 — 175 ر.س      ║
+║                                  ║
+║  أو:                              ║
+║  ⚪ أفضّل انتظار رجوع الأصلي       ║
+║                                  ║
+║   [ تصفح البدائل ] [ احفظ الأصلي ] ║
+╚══════════════════════════════════╝
+```
+
+**📊 Dashboard:** "OOS recovery rate: 34% (من 100 زائر شاهد OOS، 34 اشتروا بديل)"
+**🏪 Use Case:** متجر fashion ينقذ 34% من traffic كان سيخرج → revenue recovery كبير
+
+---
+
+#### Module 51 — Coming Soon / Pre-Launch Capture (🟡 Phase 1)
+**🎯 الوظيفة:** التقاط الاهتمام قبل إطلاق منتج — يبني anticipation + قائمة launch جاهزة
+**📌 متى يظهر:** صفحة منتج "غير منشور" أو category مخصصة
+**🔧 الموقع التقني:** Product status + capture form
+
+**💬 مثال UI:**
+```
+╔══════════════════════════════════╗
+║  🚀 قريبًا — اشتركي                ║
+║                                  ║
+║  [صورة المنتج blur/teaser]        ║
+║                                  ║
+║  Vitamin Repair Serum             ║
+║  متوقع: 15 ديسمبر                 ║
+║                                  ║
+║  📱 رقم الجوال (اختياري):          ║
+║  ☐ نبهيني عند الإطلاق              ║
+║  ☐ احصلي على 15% خصم Early Bird   ║
+║                                  ║
+║         [ اشتركي ]                ║
+╚══════════════════════════════════╝
+```
+
+**📊 Dashboard:** "Pre-launch list: 234 مشترك على Vitamin Repair Serum (قبل الإطلاق)"
+**🏪 Use Case:** Brand تطلق منتج جديد مع 234 عميل ينتظرون = guaranteed first-day sales + social validation
+
+---
+
+#### Module 52 — Smart Coupon Discovery (🟠 Phase 2)
+**🎯 الوظيفة:** يسأل العميل "تبحث/ين عن كود خصم؟" + يقترح متاح أو يلتقط البحث
+**📌 متى يظهر:** Cart عند Exit Intent، أو checkout قبل payment
+**🔧 الموقع التقني:** Coupons API + capture intent
+
+**💬 مثال UI:**
+```
+╔══════════════════════════════════╗
+║  🎁 تبحثين عن كود خصم؟            ║
+║                                  ║
+║  ✅ كوبون First-Order: NEW10      ║
+║      (10% خصم لأول طلب)            ║
+║                                  ║
+║  أو إذا تبحثين عن كود معين:        ║
+║  ┌────────────────────────────┐  ║
+║  │ اكتبي اسم الكوبون           │  ║
+║  └────────────────────────────┘  ║
+║                                  ║
+║  [ تطبيق ]    [ تخطي ]           ║
+╚══════════════════════════════════╝
+```
+
+**📊 Dashboard:** "Searched codes (غير موجودة): SARA20 (23 بحث)، MONA15 (12)..." — **يكشف influencer codes غير مسجلة!**
+**🏪 Use Case:** متجر يكتشف 23 عميل بحثوا "SARA20" → هذا code influencer غير منظم → partnership غير معلن
+
+---
+
+#### Module 53 — Shipping Transparency Calculator (🟠 Phase 2 — ⚠️ يحتاج verification)
+**🎯 الوظيفة:** يحسب الشحن قبل الـ checkout (على PDP أو cart) — يزيل مفاجأة الشحن
+**📌 الفرق عن Salla Native:** سلة تعرض الشحن في checkout. هذا قبل، أكثر شفافية.
+**📌 متى يظهر:** Cart أو PDP — "أحسبي الشحن لمنطقتك"
+**🔧 الموقع التقني:** Shipping API من سلة — **Needs verification**
+
+**💬 مثال UI:**
+```
+╔══════════════════════════════════╗
+║  📦 تكلفة الشحن إلى منطقتك          ║
+║                                  ║
+║  المدينة: [الرياض ▼]              ║
+║                                  ║
+║  🚚 الشحن العادي: 25 ر.س (3 أيام) ║
+║  ⚡ الشحن السريع: 45 ر.س (يوم واحد) ║
+║                                  ║
+║  💡 شحن مجاني للطلبات +200 ر.س     ║
+║  [أضيفي 73 ر.س للشحن المجاني]      ║
+╚══════════════════════════════════╝
+```
+
+**📊 Dashboard:** "Shipping cost objections: 28% من cart abandonment بسبب شحن غير متوقع"
+**🏪 Use Case:** متجر يرى "تكلفة شحن" أكبر سبب abandonment → يضع free shipping threshold → CVR ترتفع
+
+---
+
+#### Module 54 — Influencer Code Capture & Attribution (🟡 Phase 1)
+**🎯 الوظيفة:** يلتقط دخول العميل من influencer (UTM أو code) + يربط الـ purchase بـ influencer specific
+**📌 الفرق عن Module 23 (Campaign Landing):** Module 23 generic UTM. هذا influencer-specific مع per-person attribution.
+**📌 متى يظهر:** أول زيارة من UTM إعلامي + auto-apply في checkout
+**🔧 الموقع التقني:** UTM parsing + Salla coupons API
+
+**💬 مثال UI (Landing من Instagram story):**
+```
+👋 شكرًا لزيارتك من سارة!
+استخدمي كود: SARA20 لـ 20% خصم
+[ تسوقي مع الكود ]
+```
+
+**💬 Auto-Apply في Checkout:**
+```
+✅ كود SARA20 مطبّق (-20%) — شكرًا لسارة!
+```
+
+**📊 Dashboard:**
+- Per-Influencer revenue dashboard
+- "Sara (sara_kn): 47 طلب، 24,000 ر.س، CAC: 6 ر.س"
+- "Mona: 23 طلب، 11,200 ر.س، CAC: 4 ر.س"
+- "Top ROI: Mona (450%)"
+
+**🏪 Use Case:** متجر يكتشف Mona أعلى ROI من Sara → يضاعف الاستثمار معها
+
+---
+
+#### Module 55 — Cart Sharing & Save Link (🟡 Phase 1)
+**🎯 الوظيفة:** يولّد link قابل للمشاركة على WhatsApp/إيميل — يفعّل social shopping
+**📌 الفرق عن Module 22 (Cart Rescue):** Module 22 ينقذ من exit. هذا يفعّل social shopping intentionally.
+**📌 متى يظهر:** زر في Cart "💾 احفظ أو شاركي السلة"
+**🔧 الموقع التقني:** Cart state serialization + URL generator
+
+**💬 مثال UI:**
+```
+╔══════════════════════════════════╗
+║  💾 احفظي السلة أو شاركيها         ║
+║                                  ║
+║  📋 رابط مشترك:                    ║
+║  https://store.sa/cart/abc123     ║
+║       [ نسخ الرابط ]               ║
+║                                  ║
+║  أو شاركي مباشرة:                  ║
+║  [ 📱 واتساب ]                     ║
+║  [ 📧 إيميل ]                      ║
+║                                  ║
+║  🎁 لو الـ link استُخدم لشراء،       ║
+║      كلاكما يحصل على 10% خصم!     ║
+╚══════════════════════════════════╝
+```
+
+**📊 Dashboard:**
+- "Carts shared: 47 هذا الأسبوع"
+- "Conversion rate من shared carts: 38% (vs 8% organic)"
+- "Top sharers: top 10 customers بـ # shares"
+
+**🏪 Use Case:** Gift store — bride تشارك سلة "list of gifts I want" مع صديقاتها → 38% conversion على shared carts
+
+---
+
+#### Module 56 — Free Sample / Trial Request (🟠 Phase 2 — vertical-specific)
+**🎯 الوظيفة:** يلتقط طلبات samples للمنتجات الفاخرة/المخاطر العالية قبل الشراء الكامل
+**📌 متى يظهر:** PDP لمنتجات gold-tier (>500 ر.س عادة)
+**🔧 الموقع التقني:** Custom workflow + Salla orders API + shipping
+
+**💬 مثال UI:**
+```
+╔══════════════════════════════════╗
+║  🧪 جرّبيها قبل الالتزام             ║
+║                                  ║
+║  هذا المنتج فاخر (1,200 ر.س)        ║
+║  جرّبي عينة مجانية أولاً             ║
+║                                  ║
+║  📦 عينة 5ml: مجانية + شحن 25 ر.س ║
+║                                  ║
+║  📱 رقم الجوال:                    ║
+║  📍 العنوان:                       ║
+║                                  ║
+║         [ اطلبي العينة ]           ║
+║                                  ║
+║  💡 إذا اشتريتِ الكامل لاحقًا،       ║
+║      نخصم الـ 25 ر.س                ║
+╚══════════════════════════════════╝
+```
+
+**📊 Dashboard:**
+- "Sample requests: 23 هذا الشهر"
+- "Conversion sample → full purchase: 28%"
+- "Revenue per sample: ~340 ر.س"
+- "Top sampled: Royal Oud (8 samples → 3 sales)"
+
+**🏪 Use Case:** Premium perfume store — high-AOV with sample option → 28% sample-to-full conversion، يقلل return rate
+
+---
+
+### 📋 الملخص الكامل — توزيع كل الـ 56 Snippet (محدث بعد التحقق Live من سلة)
 
 | Scope | عدد | الـ Snippets |
 |---|---|---|
 | 🟢 Scope 0 — MVP | 9 | 4, 17, 7, 8, 32, 34, 35 + **40** (PDPL Center إلزامي) + 5 موقوف |
-| 🟡 Scope 1 — Phase 1 | 14 | 5, 8 (part), 22, 9, 33, 12, 19, 23, 10, 26, 31 + **38** (Empty Search) + **39** (First-Time vs Returning) + **46** (Discovery Quiz) |
-| 🟠 Scope 2 — Phase 2 | 14 | 3, 24, 1, 2, 11, 20, 13, 18 + **37** (Checkout Hesitation) + **41** (Live Stock — overlap care) + **42** (Mobile One-Tap — overlap care) + **43** (Pre-Checkout) + **44** (Smart Reorder) + **45** (Comparison Detector) |
+| 🟡 Scope 1 — Phase 1 | 19 | 5, 8 (part), 22, 9, 33, 12, 19, 23, 10, 26, 31 + **38, 39, 46** (batch 1) + **48, 49, 51, 54, 55** (batch 2) |
+| 🟠 Scope 2 — Phase 2 | 19 | 3, 24, 1, 2, 11, 20, 13, 18 + **37, 41, 42, 43, 44, 45** (batch 1) + **47, 50, 52, 53, 56** (batch 2) |
 | 🔵 Scope 3 — Phase 3 | 3 | 36, 30, 21 |
 | ⚫ Scope 4 — Sister Products | 8 | 6, 14, 15, 16, 25, 27, 28, 29 |
 
-**المجموع: 46 snippet (36 أصلي + 10 إضافي)، 0 محذوف، كل واحد له مكان استراتيجي.**
+**المجموع: 56 snippet (36 أصلي + 20 إضافي)، 0 محذوف، كل واحد له مكان استراتيجي.**
 
-### 🆕 الـ 10 الإضافية — Quick Reference (بعد التحقق)
+### 🆕 الـ 10 الإضافية الأولى (37-46) — Quick Reference
 
 | # | الاسم | Scope | Native Overlap | Tech Verified | الحكم |
 |---|---|---|---|---|---|
 | 37 | Checkout Hesitation Capture | 🟠 Phase 2 | ❌ لا | ⚠️ يحتاج تحقق | آمن مع verification |
-| 38 | Empty Search Capture | 🟡 Phase 1 | ❌ لا | ✅ مؤكد (`.s-search-no-results`) | 🟢 آمن |
+| 38 | Empty Search Capture | 🟡 Phase 1 | ❌ لا | ✅ مؤكد | 🟢 آمن |
 | 39 | First-Time vs Returning | 🟡 Phase 1 | ❌ لا | ✅ مؤكد | 🟢 آمن |
 | 40 | PDPL Consent Center | 🟢 **MVP** | ❌ لا | ✅ URL خاصة بنا | 🟢 إلزامي |
 | 41 | Live Stock Urgency | 🟠 Phase 2 | ⚠️ بعض الـ themes | ✅ webhook مؤكد | 🟠 تداخل جزئي |
@@ -1600,12 +1891,39 @@ Top objections:
 | 45 | Comparison Shopping Detector | 🟠 Phase 2 | ❌ لا | ✅ session tracking | 🟢 آمن |
 | 46 | Vertical Discovery Quiz | 🟡 Phase 1 | ❌ لا | ✅ مؤكد | 🟢 آمن |
 
-### 🎯 ملخص التحقق
+### 🆕 الـ 10 الإضافية الثانية (47-56) — Quick Reference
 
-- **6 آمنة 100٪** (38, 39, 40, 44, 45, 46) — جاهزة للبناء
-- **2 تحتاج verification تقني** (37, 43) — checkout pages hooks
-- **2 تداخل مع Salla native** (41 stock، 42 wishlist) — يحتاجون positioning واضح أو حذف
-- **التوصية:** Module 42 يبقى في Phase 2 بـ positioning صارم، مع kill criterion (إذا volume <2x من Wishlist native، نلغيه)
+| # | الاسم | Scope | Native Overlap | Tech Verified | الحكم |
+|---|---|---|---|---|---|
+| 47 | Customer Bundle Builder | 🟠 Phase 2 | ❌ (merchant bundles موجود، customer-built جديد) | ✅ مؤكد | 🟢 آمن |
+| 48 | Recently Viewed Strip | 🟡 Phase 1 | ⚠️ بعض الـ themes | ✅ localStorage | 🟠 تداخل جزئي |
+| 49 | Birthday/Anniversary | 🟡 Phase 1 | ❌ لا | ⚠️ verify customer fields | آمن مع تحقق |
+| 50 | OOS Substitute Engine | 🟠 Phase 2 | ❌ لا | ✅ Products API | 🟢 آمن |
+| 51 | Coming Soon Capture | 🟡 Phase 1 | ❌ لا | ✅ مؤكد | 🟢 آمن |
+| 52 | Smart Coupon Discovery | 🟠 Phase 2 | ❌ (Salla coupons موجود، discovery جديد) | ✅ Coupons API | 🟢 آمن |
+| 53 | Shipping Transparency | 🟠 Phase 2 | ⚠️ checkout shows shipping | ⚠️ يحتاج تحقق | آمن مع verification |
+| 54 | Influencer Code Capture | 🟡 Phase 1 | ❌ لا | ✅ UTM + Coupons | 🟢 آمن |
+| 55 | Cart Sharing & Save | 🟡 Phase 1 | ❌ لا | ✅ مؤكد | 🟢 آمن |
+| 56 | Free Sample Request | 🟠 Phase 2 | ❌ لا | ✅ Orders API | 🟢 آمن |
+
+### 🎯 ملخص التحقق الكلي (Modules 37-56)
+
+| الحالة | العدد | الـ Modules |
+|---|---|---|
+| 🟢 **آمن 100٪** | 13 | 38, 39, 40, 44, 45, 46, 47, 50, 51, 52, 54, 55, 56 |
+| 🟠 **آمن مع verification تقني** | 4 | 37, 43, 49, 53 |
+| 🟠 **تداخل جزئي مع themes** | 2 | 41, 48 |
+| 🔴 **تداخل واضح (يحتاج positioning)** | 1 | 42 (Salla Wishlist) |
+
+### 📊 توزيع المراحل النهائي
+
+- **MVP**: 9 (8 أصلية + Module 40 إلزامي)
+- **Phase 1**: 19 (snippets آمنة + قيمة فورية)
+- **Phase 2**: 19 (snippets أكثر تعقيدًا/تحتاج verification)
+- **Phase 3**: 3 (AI + advanced)
+- **Sister Products**: 8 (منتجات منفصلة)
+
+**Total: 58 entries × 56 unique snippets** (some appear in 2 scopes for sub-features)
 
 ---
 
