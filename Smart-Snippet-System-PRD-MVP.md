@@ -2262,6 +2262,305 @@ See section 15 for complete spec. Additional examples:
 
 ---
 
+## 27. Module 40 + Phase 1/2 Roadmap Specifications
+
+This section adds explicit specs for 20 modules referenced in the Analysis library but not covered in MVP Features 1-4:
+- **Module 40** (PDPL Consent Center) — formally MVP-scope requirement
+- **8 Phase 1 modules** (Months 4-9)
+- **11 Phase 2 modules** (Months 10-18)
+
+Specs are condensed (Description + Top FRs + Salla Integration + Dependencies + Effort). Full UX/edge case treatment will be added when each module enters active development.
+
+---
+
+### 27.1 Module 40 — PDPL Consent Management Center (🟢 MVP — Legal Requirement)
+
+**Description:** Customer-facing self-service portal for managing data, signals, and consent. **Required for PDPL compliance** (already referenced as cross-cutting requirement in Section 11.2; this section formalizes it as a specific feature).
+
+**Functional Requirements:**
+- FR-40.1: Accessible via `/v1/public/consent/manage?token=<jwt>`. Token has 30-day expiry, regenerable.
+- FR-40.2: Display all interest signals + submissions associated with customer's phone hash.
+- FR-40.3: One-click cancel for individual signals (sets `status='cancelled'`).
+- FR-40.4: Bulk delete with confirmation prompt (cascade delete + audit log).
+- FR-40.5: Consent withdrawal (stops future communications, retains audit record).
+- FR-40.6: Data export (CSV/JSON download).
+- FR-40.7: Log all actions to `consent_records` table with timestamp, IP, action type.
+- FR-40.8: Email confirmation after each major action (delete, withdraw).
+- FR-40.9: Arabic + English (RTL support).
+
+**Salla Integration:** None (self-hosted URL).
+**Dependencies:** Database schema (`interest_signals`, `consent_records` tables) — already in MVP.
+**Effort:** Medium (3-5 days).
+**Open Questions:** Should we require phone OTP for full data deletion to prevent token-leak attacks?
+
+---
+
+### 27.2 Phase 1 Modules (Months 4-9)
+
+All Phase 1 modules build directly on MVP data infrastructure. Technically verified, low Salla native overlap.
+
+#### Module 38 — Empty Search Capture (🟡 Phase 1)
+**Description:** Captures customer search queries that returned no results. Direct inventory demand signal.
+**Key FRs:**
+- FR-38.1: Detect empty search state via `.s-search-no-results` CSS class or DOM observation.
+- FR-38.2: Inject capture form: pre-filled query + optional phone + PDPL consent.
+- FR-38.3: Store in `missed_searches` table with frequency aggregation.
+- FR-38.4: Dashboard widget: "Top missed searches" sorted by count.
+
+**Salla Integration:** Twilight `<salla-search>` component customization *(Confirmed)*.
+**Dependencies:** PDPL consent layer (MVP).
+**Effort:** Small-Medium (2-4 days).
+
+#### Module 39 — First-Time vs Returning Recognition (🟡 Phase 1)
+**Description:** Different greeting/widget for new vs returning visitors, with intent pre-tagging.
+**Key FRs:**
+- FR-39.1: Detect visitor state via cookie + Salla customer login state.
+- FR-39.2: First-time: show 3-option intent selector (gift / personal / browse).
+- FR-39.3: Returning: show last-viewed product + recently viewed strip.
+- FR-39.4: Store intent tag in `visitor_intents` table linked to session.
+
+**Salla Integration:** Twilight SDK for customer state *(Confirmed)*.
+**Dependencies:** None (independent feature).
+**Effort:** Medium (4-5 days).
+
+#### Module 46 — Vertical Discovery Quiz (🟡 Phase 1)
+**Description:** Short quiz building customer preference profile (skin type, style, scent family).
+**Key FRs:**
+- FR-46.1: Configurable quiz templates per vertical (beauty, fashion, perfumes).
+- FR-46.2: 3-5 question flow, < 60 seconds completion.
+- FR-46.3: Generate `customer_profile` JSON stored in `customer_profiles` table.
+- FR-46.4: Apply profile to product filtering + recommendations.
+
+**Salla Integration:** Products API for filtering.
+**Dependencies:** Module 39 (First-Time recognition) for trigger.
+**Effort:** Medium-Large (5-7 days).
+
+#### Module 48 — Recently Viewed Memory Strip (🟡 Phase 1 — overlap care)
+**Description:** Sticky horizontal strip showing recently viewed products + Dashboard tracking.
+**Key FRs:**
+- FR-48.1: Store last 20 viewed products in localStorage per visitor.
+- FR-48.2: Display sticky strip on PDP/Cart with horizontal scroll.
+- FR-48.3: Track view-to-purchase conversion per product in `widget_events`.
+
+**Salla Integration:** Twilight body hooks *(Confirmed)*.
+**Dependencies:** Module 35 (Analytics infrastructure).
+**Effort:** Small-Medium (3-4 days).
+**Note:** Some Salla themes already show "recently viewed" natively. Position our snippet to add tracking value, not duplicate visual.
+
+#### Module 49 — Birthday/Anniversary Capture (🟡 Phase 1)
+**Description:** Capture personal dates for triggered campaigns.
+**Key FRs:**
+- FR-49.1: Form fields: birthday (DD/MM), anniversary (optional, DD/MM).
+- FR-49.2: PDPL-compliant consent for date storage.
+- FR-49.3: Daily cron checks dates, triggers WhatsApp/Email 3 days before.
+- FR-49.4: Dashboard: "Birthdays this month" with campaign launcher.
+
+**Salla Integration:** Customer fields *(verify if natively supported)*.
+**Dependencies:** Module 7 (Interest Capture form components).
+**Effort:** Small (2-3 days).
+**Verification Needed:** Whether Salla `customer` object has birthday/anniversary fields natively.
+
+#### Module 51 — Coming Soon / Pre-Launch Capture (🟡 Phase 1)
+**Description:** Capture pre-launch interest for unpublished products.
+**Key FRs:**
+- FR-51.1: Detect product status="hidden" or custom "coming_soon" tag.
+- FR-51.2: Replace standard PDP with pre-launch teaser + email/phone capture.
+- FR-51.3: Optional "Early Bird discount" coupon assignment.
+- FR-51.4: Auto-notify all subscribers when product status changes to "active".
+
+**Salla Integration:** Products API + status webhooks *(Confirmed)*.
+**Dependencies:** Module 8 (Notification infrastructure).
+**Effort:** Medium (4-5 days).
+
+#### Module 54 — Influencer Code Capture & Attribution (🟡 Phase 1)
+**Description:** Capture influencer-specific traffic, track per-influencer revenue.
+**Key FRs:**
+- FR-54.1: Parse UTM params + special URL slugs (`/?ref=sara_kn`).
+- FR-54.2: Display personalized landing message with influencer name.
+- FR-54.3: Auto-apply influencer coupon code at checkout.
+- FR-54.4: Dashboard: per-influencer revenue, AOV, conversion rate, CAC.
+
+**Salla Integration:** Coupons API for auto-apply *(Confirmed)*.
+**Dependencies:** None.
+**Effort:** Medium (4-6 days).
+
+#### Module 55 — Cart Sharing & Save Link (🟡 Phase 1)
+**Description:** Generate shareable cart URL for WhatsApp/Email sharing with dual reward.
+**Key FRs:**
+- FR-55.1: Generate signed JWT containing cart state.
+- FR-55.2: Public URL `/cart/share/<token>` reconstructs cart on visit.
+- FR-55.3: Track shared cart conversions with referral attribution.
+- FR-55.4: Optional 10% discount for both sharer and buyer upon purchase.
+
+**Salla Integration:** Cart API for state reconstruction.
+**Dependencies:** Module 22 (Cart-related infrastructure from Phase 1).
+**Effort:** Medium (4-5 days).
+
+---
+
+### 27.3 Phase 2 Modules (Months 10-18)
+
+Phase 2 modules require deeper data, technical verification, or careful positioning.
+
+#### Module 37 — Checkout Hesitation Capture (🟠 Phase 2)
+**Description:** Capture abandonment reasons specifically on checkout page.
+**Key FRs:**
+- FR-37.1: Detect exit intent on checkout page (mouseleave / scroll-up / idle).
+- FR-37.2: Show 6-option reason selector (shipping, payment, security, etc.).
+- FR-37.3: Aggregate in `checkout_hesitations` table separate from PDP hesitations.
+- FR-37.4: Trigger different Doctor rules vs PDP hesitations.
+
+**Salla Integration:** Twilight checkout hooks (⚠️ **NEEDS VERIFICATION**).
+**Dependencies:** Feature 1 (Hesitation Capture) for shared components.
+**Effort:** Medium-Large (5-7 days, contingent on Salla checkout customization).
+
+#### Module 41 — Live Stock Urgency Signal (🟠 Phase 2 — overlap care)
+**Description:** Transparent stock count + social proof ("X left + Y customers viewing").
+**Key FRs:**
+- FR-41.1: Subscribe to `product.quantity.low` webhook *(Confirmed)*.
+- FR-41.2: Display badge only when stock ≤ configurable threshold (default 5).
+- FR-41.3: Augment with real-time viewing count from analytics events.
+- FR-41.4: Skip display if Salla theme already renders stock count (theme detection).
+
+**Salla Integration:** Webhook + Twilight PDP hooks *(Confirmed)*.
+**Dependencies:** Webhook handlers from MVP.
+**Effort:** Small-Medium (3-5 days).
+
+#### Module 42 — Mobile One-Tap Interest (🟠 Phase 2 — overlap with Salla Wishlist)
+**Description:** Anonymous mobile-only interest capture without form. Companion to (not replacement of) Salla Wishlist.
+**Key FRs:**
+- FR-42.1: Display sticky heart icon on PDP mobile only.
+- FR-42.2: Save product ID to cookie + send anonymous event.
+- FR-42.3: On return visit, restore from cookie with reminder banner.
+- FR-42.4: Aggregate "most anonymous-saved products" for Doctor.
+
+**Salla Integration:** Twilight SDK + mobile detection.
+**Dependencies:** Analytics infrastructure (MVP).
+**Effort:** Small (2-3 days).
+**Kill Criterion:** If incremental volume vs Salla native Wishlist < 2x in pilot, remove from roadmap.
+
+#### Module 43 — Pre-Checkout Confidence Booster (🟠 Phase 2)
+**Description:** Trust signals + WhatsApp CTA on checkout page above "Place Order".
+**Key FRs:**
+- FR-43.1: Inject configurable trust block (shipping, returns, payment security).
+- FR-43.2: Optional last-minute WhatsApp support button.
+- FR-43.3: Track impression/click-to-WhatsApp conversion.
+
+**Salla Integration:** Twilight checkout hooks (⚠️ **NEEDS VERIFICATION**).
+**Dependencies:** Same checkout verification as Module 37.
+**Effort:** Small (2-3 days, contingent on hooks).
+
+#### Module 44 — Smart Reorder Timing (🟠 Phase 2)
+**Description:** Auto-triggered reorder reminders based on product category timing.
+**Key FRs:**
+- FR-44.1: Define `reorder_category_timings` config table (e.g., serum=60d, perfume=90d).
+- FR-44.2: Daily cron scans completed orders, identifies due reorders.
+- FR-44.3: Send WhatsApp reminder with one-click reorder link.
+- FR-44.4: Track reorder rate per category for tuning.
+
+**Salla Integration:** Orders API + WhatsApp BSP.
+**Dependencies:** WhatsApp infrastructure from MVP.
+**Effort:** Medium (5-7 days).
+
+#### Module 45 — Comparison Shopping Detector (🟠 Phase 2)
+**Description:** Detect customers viewing 3+ similar products, intervene with help.
+**Key FRs:**
+- FR-45.1: Track PDP visits per session in real-time (server-side).
+- FR-45.2: When session shows 3+ PDPs from same category within 10 minutes, trigger widget.
+- FR-45.3: Widget asks: "What's making the decision hard?" with 5 options.
+- FR-45.4: Surface insights in Doctor for category-level optimization.
+
+**Salla Integration:** Products API for category matching.
+**Dependencies:** Session tracking infrastructure (Module 35 Analytics).
+**Effort:** Medium-Large (6-8 days).
+
+#### Module 47 — Customer Bundle Builder (🟠 Phase 2)
+**Description:** Customer selects 3+ products to form custom bundle with auto-discount.
+**Key FRs:**
+- FR-47.1: Configurable rules: min/max products, eligible categories, discount tiers.
+- FR-47.2: Bundle UI with selected items, dynamic pricing, "complete bundle" CTA.
+- FR-47.3: Apply discount as Salla coupon at checkout.
+- FR-47.4: Dashboard: "Top customer-built combinations" to inform official bundles.
+
+**Salla Integration:** Coupons API + Products API.
+**Dependencies:** None.
+**Effort:** Large (8-10 days).
+
+#### Module 50 — Out-of-Stock Substitute Engine (🟠 Phase 2)
+**Description:** Suggest substitutes immediately when product is OOS + capture preference.
+**Key FRs:**
+- FR-50.1: Detect OOS state via stock = 0 check.
+- FR-50.2: Query Products API for similar products (same category, price, attributes).
+- FR-50.3: Display 3 alternatives + "wait for original" option.
+- FR-50.4: Track substitute conversion rate vs wait rate.
+
+**Salla Integration:** Products API for similarity queries.
+**Dependencies:** None.
+**Effort:** Medium (5-6 days).
+
+#### Module 52 — Smart Coupon Discovery (🟠 Phase 2)
+**Description:** Customer-facing coupon search + capture of searched non-existent codes.
+**Key FRs:**
+- FR-52.1: Search bar in cart/checkout: "Looking for a coupon?"
+- FR-52.2: Suggest available eligible coupons based on cart contents.
+- FR-52.3: Capture all searched code names (even non-existent) in `coupon_searches` table.
+- FR-52.4: Dashboard: "Searched codes not in system" → uncovers ghost influencer codes.
+
+**Salla Integration:** Coupons API.
+**Dependencies:** None.
+**Effort:** Medium (4-6 days).
+
+#### Module 53 — Shipping Transparency Calculator (🟠 Phase 2)
+**Description:** Pre-checkout shipping cost calculator on PDP/Cart.
+**Key FRs:**
+- FR-53.1: City/region dropdown with auto-detect from IP.
+- FR-53.2: Display shipping options + cost in real-time.
+- FR-53.3: "Add X SAR for free shipping" progress bar.
+- FR-53.4: Track shipping objection rate vs original cart abandonment.
+
+**Salla Integration:** Shipping API (⚠️ **VERIFY AVAILABILITY**).
+**Dependencies:** None.
+**Effort:** Medium (5-7 days, contingent on API).
+
+#### Module 56 — Free Sample / Trial Request (🟠 Phase 2)
+**Description:** Sample request workflow for high-AOV products (>500 SAR).
+**Key FRs:**
+- FR-56.1: Eligible product detection (price threshold + sample-eligible tag).
+- FR-56.2: Sample request form with address + phone.
+- FR-56.3: Create Salla order with sample SKU (custom flow).
+- FR-56.4: Track sample-to-purchase conversion + revenue attribution.
+
+**Salla Integration:** Orders API.
+**Dependencies:** Order management infrastructure.
+**Effort:** Large (8-10 days, includes operational workflow).
+
+---
+
+### 27.4 Roadmap Total Effort Estimate
+
+| Phase | Modules | Total Effort |
+|---|---|---|
+| MVP (Module 40 explicit) | 1 | 3-5 days |
+| Phase 1 (38, 39, 46, 48, 49, 51, 54, 55) | 8 | 25-35 days |
+| Phase 2 (37, 41, 42, 43, 44, 45, 47, 50, 52, 53, 56) | 11 | 55-75 days |
+| **Total** | **20** | **~80-110 dev days (~16-22 weeks)** |
+
+### 27.5 Critical Path Items
+
+These can block multiple modules:
+1. **Salla checkout customization verification** — blocks 37, 43 (potentially 53).
+2. **WhatsApp Business API setup** — blocks 44, 49, 51 notifications.
+3. **Salla customer fields availability** — blocks 49 (Birthday).
+4. **Session tracking infrastructure** — blocks 45 (Comparison Detector).
+
+### 27.6 Out of Scope Notes for Roadmap
+
+- Modules listed are **NOT** part of MVP scope. Building prematurely risks MVP timeline.
+- Each module must pass MVP kill criteria before development begins.
+- Re-prioritize roadmap quarterly based on real merchant feedback.
+
+---
+
 ## Document Sign-Off
 
 | Role | Name | Date | Status |

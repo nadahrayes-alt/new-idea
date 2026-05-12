@@ -2246,6 +2246,305 @@ const DEFAULT_REASONS = [
 
 ---
 
+## 27. Module 40 + خارطة Phase 1/2
+
+هذا القسم يضيف specs صريحة لـ 20 module مذكورة في Analysis library لكنها غير مغطاة في MVP Features 1-4:
+- **Module 40** (PDPL Consent Center) — متطلب MVP رسمي
+- **8 Phase 1 modules** (الأشهر 4-9)
+- **11 Phase 2 modules** (الأشهر 10-18)
+
+الـ specs مكثفة (وصف + أهم FRs + تكامل سلة + Dependencies + الجهد). UX/edge cases الكاملة تُضاف عند بدء التطوير الفعلي لكل module.
+
+---
+
+### 27.1 Module 40 — PDPL Consent Management Center (🟢 MVP — متطلب قانوني)
+
+**الوصف:** بوابة self-service مواجهة للعميل لإدارة بياناته وإشاراته وموافقاته. **مطلوب لامتثال PDPL** (مذكور بالفعل كمتطلب cross-cutting في Section 11.2، هذا القسم يجعله feature صريحة).
+
+**المتطلبات الوظيفية:**
+- FR-40.1: متاح عبر `/v1/public/consent/manage?token=<jwt>`. الـ token مدة 30 يومًا، قابل للتجديد.
+- FR-40.2: عرض كل interest signals + submissions المرتبطة بـ phone hash العميل.
+- FR-40.3: إلغاء بنقرة واحدة لكل إشارة (يضع `status='cancelled'`).
+- FR-40.4: حذف bulk مع prompt تأكيد (cascade delete + audit log).
+- FR-40.5: سحب الموافقة (يوقف الـ communications، يحتفظ بـ audit record).
+- FR-40.6: تصدير البيانات (CSV/JSON).
+- FR-40.7: تسجيل كل actions في `consent_records` table مع timestamp, IP, action type.
+- FR-40.8: تأكيد بـ email بعد كل إجراء كبير (حذف، سحب).
+- FR-40.9: عربي + إنجليزي (دعم RTL).
+
+**تكامل سلة:** لا شيء (URL خاصة بنا).
+**Dependencies:** database schema (`interest_signals`, `consent_records`) — موجود في MVP.
+**الجهد:** متوسط (3-5 أيام).
+**أسئلة مفتوحة:** هل نطلب phone OTP للحذف الكامل لمنع token-leak attacks؟
+
+---
+
+### 27.2 Phase 1 Modules (الأشهر 4-9)
+
+كل modules Phase 1 تبني مباشرة على بنية بيانات MVP. مؤكدة تقنيًا، تداخل native منخفض.
+
+#### Module 38 — Empty Search Capture (🟡 Phase 1)
+**الوصف:** يلتقط استعلامات بحث العميل التي أرجعت لا نتائج. إشارة طلب مخزون مباشرة.
+**أهم الـ FRs:**
+- FR-38.1: كشف empty search state عبر `.s-search-no-results` CSS class أو DOM observation.
+- FR-38.2: حقن نموذج التقاط: query معبأ + جوال اختياري + موافقة PDPL.
+- FR-38.3: تخزين في `missed_searches` table مع تجميع frequency.
+- FR-38.4: widget لوحة: "Top missed searches" مرتبة حسب العدد.
+
+**تكامل سلة:** Twilight `<salla-search>` component customization *(مؤكد)*.
+**Dependencies:** طبقة موافقة PDPL (MVP).
+**الجهد:** صغير-متوسط (2-4 أيام).
+
+#### Module 39 — First-Time vs Returning Recognition (🟡 Phase 1)
+**الوصف:** ترحيب/widget مختلف للزوار الجدد vs العائدين، مع pre-tag للنية.
+**أهم الـ FRs:**
+- FR-39.1: كشف حالة الزائر عبر cookie + Salla customer login state.
+- FR-39.2: First-time: اختيار نية بـ 3 خيارات (هدية / شخصي / تصفح).
+- FR-39.3: Returning: عرض آخر منتج شوهد + recently viewed strip.
+- FR-39.4: تخزين intent tag في `visitor_intents` table مرتبط بـ session.
+
+**تكامل سلة:** Twilight SDK لـ customer state *(مؤكد)*.
+**Dependencies:** لا شيء (مستقلة).
+**الجهد:** متوسط (4-5 أيام).
+
+#### Module 46 — Vertical Discovery Quiz (🟡 Phase 1)
+**الوصف:** quiz قصيرة تبني customer preference profile (نوع البشرة، الستايل، عائلة العطر).
+**أهم الـ FRs:**
+- FR-46.1: Templates قابلة للضبط لكل vertical (beauty, fashion, perfumes).
+- FR-46.2: 3-5 أسئلة، أقل من 60 ثانية للإكمال.
+- FR-46.3: توليد `customer_profile` JSON مخزن في `customer_profiles` table.
+- FR-46.4: تطبيق الـ profile على product filtering + recommendations.
+
+**تكامل سلة:** Products API للفلترة.
+**Dependencies:** Module 39 (First-Time recognition) كـ trigger.
+**الجهد:** متوسط-كبير (5-7 أيام).
+
+#### Module 48 — Recently Viewed Memory Strip (🟡 Phase 1 — تداخل جزئي)
+**الوصف:** Sticky horizontal strip للمنتجات المشاهدة مؤخرًا + Dashboard tracking.
+**أهم الـ FRs:**
+- FR-48.1: تخزين آخر 20 منتج في localStorage لكل visitor.
+- FR-48.2: عرض sticky strip على PDP/Cart مع horizontal scroll.
+- FR-48.3: تتبع view-to-purchase conversion لكل منتج في `widget_events`.
+
+**تكامل سلة:** Twilight body hooks *(مؤكد)*.
+**Dependencies:** Module 35 (بنية Analytics).
+**الجهد:** صغير-متوسط (3-4 أيام).
+**ملاحظة:** بعض ثيمات سلة تعرض "recently viewed" natively. نخصص snippet لإضافة قيمة tracking، لا تكرار بصري.
+
+#### Module 49 — Birthday/Anniversary Capture (🟡 Phase 1)
+**الوصف:** التقاط تواريخ شخصية لحملات triggered.
+**أهم الـ FRs:**
+- FR-49.1: حقول النموذج: عيد ميلاد (DD/MM)، ذكرى (اختياري، DD/MM).
+- FR-49.2: موافقة PDPL-compliant لتخزين التواريخ.
+- FR-49.3: Cron يومي يفحص التواريخ، يطلق WhatsApp/Email 3 أيام قبل.
+- FR-49.4: لوحة: "Birthdays this month" مع campaign launcher.
+
+**تكامل سلة:** Customer fields *(تحقق من الدعم native)*.
+**Dependencies:** Module 7 (مكونات نموذج Interest Capture).
+**الجهد:** صغير (2-3 أيام).
+**يحتاج تحقق:** هل Salla `customer` object يحتوي حقول birthday/anniversary natively.
+
+#### Module 51 — Coming Soon / Pre-Launch Capture (🟡 Phase 1)
+**الوصف:** التقاط اهتمام pre-launch للمنتجات غير المنشورة.
+**أهم الـ FRs:**
+- FR-51.1: كشف product status="hidden" أو tag مخصص "coming_soon".
+- FR-51.2: استبدال PDP العادي بـ pre-launch teaser + email/phone capture.
+- FR-51.3: تخصيص coupon "Early Bird discount" اختياري.
+- FR-51.4: إشعار تلقائي لكل المشتركين عند تغيير status لـ "active".
+
+**تكامل سلة:** Products API + status webhooks *(مؤكد)*.
+**Dependencies:** Module 8 (بنية الإشعارات).
+**الجهد:** متوسط (4-5 أيام).
+
+#### Module 54 — Influencer Code Capture & Attribution (🟡 Phase 1)
+**الوصف:** التقاط traffic من influencer-specific، تتبع revenue per-influencer.
+**أهم الـ FRs:**
+- FR-54.1: تحليل UTM params + URL slugs خاصة (`/?ref=sara_kn`).
+- FR-54.2: عرض رسالة landing مخصصة باسم influencer.
+- FR-54.3: تطبيق coupon code influencer تلقائيًا عند checkout.
+- FR-54.4: لوحة: revenue per-influencer، AOV، معدل التحويل، CAC.
+
+**تكامل سلة:** Coupons API للـ auto-apply *(مؤكد)*.
+**Dependencies:** لا شيء.
+**الجهد:** متوسط (4-6 أيام).
+
+#### Module 55 — Cart Sharing & Save Link (🟡 Phase 1)
+**الوصف:** توليد URL قابل للمشاركة للسلة على WhatsApp/Email مع dual reward.
+**أهم الـ FRs:**
+- FR-55.1: توليد JWT موقع يحتوي cart state.
+- FR-55.2: URL عام `/cart/share/<token>` يعيد بناء السلة عند الزيارة.
+- FR-55.3: تتبع conversions من shared carts مع referral attribution.
+- FR-55.4: 10% خصم اختياري لكل من المشارك والمشتري عند الشراء.
+
+**تكامل سلة:** Cart API لإعادة بناء الحالة.
+**Dependencies:** Module 22 (بنية Cart من Phase 1).
+**الجهد:** متوسط (4-5 أيام).
+
+---
+
+### 27.3 Phase 2 Modules (الأشهر 10-18)
+
+Phase 2 modules تحتاج بيانات أعمق، تحقق تقني، أو positioning دقيق.
+
+#### Module 37 — Checkout Hesitation Capture (🟠 Phase 2)
+**الوصف:** التقاط أسباب abandonment على صفحة checkout بالذات.
+**أهم الـ FRs:**
+- FR-37.1: كشف exit intent على checkout (mouseleave / scroll-up / idle).
+- FR-37.2: عرض اختيار سبب بـ 6 خيارات (شحن، دفع، أمان...).
+- FR-37.3: التجميع في `checkout_hesitations` table منفصل عن PDP hesitations.
+- FR-37.4: إطلاق Doctor rules مختلفة عن PDP hesitations.
+
+**تكامل سلة:** Twilight checkout hooks (⚠️ **يحتاج تحقق**).
+**Dependencies:** Feature 1 (Hesitation Capture) للمكونات المشتركة.
+**الجهد:** متوسط-كبير (5-7 أيام، يعتمد على Salla checkout customization).
+
+#### Module 41 — Live Stock Urgency Signal (🟠 Phase 2 — تداخل جزئي)
+**الوصف:** عداد stock شفاف + social proof ("X متبقي + Y عميل يشاهد").
+**أهم الـ FRs:**
+- FR-41.1: الاشتراك في webhook `product.quantity.low` *(مؤكد)*.
+- FR-41.2: عرض badge فقط عند stock ≤ threshold قابل للضبط (افتراضي 5).
+- FR-41.3: تعزيز بـ viewing count من analytics events.
+- FR-41.4: تخطي العرض إذا theme سلة يعرض stock count (theme detection).
+
+**تكامل سلة:** Webhook + Twilight PDP hooks *(مؤكد)*.
+**Dependencies:** Webhook handlers من MVP.
+**الجهد:** صغير-متوسط (3-5 أيام).
+
+#### Module 42 — Mobile One-Tap Interest (🟠 Phase 2 — تداخل مع Salla Wishlist)
+**الوصف:** التقاط اهتمام anonymous على الجوال فقط بدون نموذج. مكمّل (لا بديل) لـ Salla Wishlist.
+**أهم الـ FRs:**
+- FR-42.1: عرض sticky heart icon على PDP موبايل فقط.
+- FR-42.2: حفظ product ID في cookie + إرسال anonymous event.
+- FR-42.3: عند return visit، استعادة من cookie مع banner تذكير.
+- FR-42.4: تجميع "most anonymous-saved products" لـ Doctor.
+
+**تكامل سلة:** Twilight SDK + mobile detection.
+**Dependencies:** بنية Analytics (MVP).
+**الجهد:** صغير (2-3 أيام).
+**Kill Criterion:** إذا incremental volume vs Salla Wishlist native < 2x في pilot، حذف من roadmap.
+
+#### Module 43 — Pre-Checkout Confidence Booster (🟠 Phase 2)
+**الوصف:** Trust signals + WhatsApp CTA على checkout فوق "Place Order".
+**أهم الـ FRs:**
+- FR-43.1: حقن block ثقة قابل للضبط (شحن، استرداد، أمان دفع).
+- FR-43.2: زر دعم WhatsApp اختياري لحظة أخيرة.
+- FR-43.3: تتبع impression/click-to-WhatsApp conversion.
+
+**تكامل سلة:** Twilight checkout hooks (⚠️ **يحتاج تحقق**).
+**Dependencies:** نفس checkout verification لـ Module 37.
+**الجهد:** صغير (2-3 أيام، يعتمد على hooks).
+
+#### Module 44 — Smart Reorder Timing (🟠 Phase 2)
+**الوصف:** تذكيرات reorder auto-triggered بناءً على timing فئة المنتج.
+**أهم الـ FRs:**
+- FR-44.1: تعريف `reorder_category_timings` config table (مثال: serum=60d، perfume=90d).
+- FR-44.2: Cron يومي يفحص الـ completed orders، يحدد reorders due.
+- FR-44.3: إرسال WhatsApp reminder مع one-click reorder link.
+- FR-44.4: تتبع reorder rate per category للضبط.
+
+**تكامل سلة:** Orders API + WhatsApp BSP.
+**Dependencies:** بنية WhatsApp من MVP.
+**الجهد:** متوسط (5-7 أيام).
+
+#### Module 45 — Comparison Shopping Detector (🟠 Phase 2)
+**الوصف:** كشف العملاء الذين يشاهدون 3+ منتجات مشابهة، التدخل بـ help.
+**أهم الـ FRs:**
+- FR-45.1: تتبع PDP visits لكل session real-time (server-side).
+- FR-45.2: عند 3+ PDPs من نفس category خلال 10 دقائق، إطلاق widget.
+- FR-45.3: Widget يسأل: "ما الذي يصعّب القرار؟" بـ 5 خيارات.
+- FR-45.4: عرض insights في Doctor لـ category-level optimization.
+
+**تكامل سلة:** Products API لمطابقة الفئة.
+**Dependencies:** بنية session tracking (Module 35 Analytics).
+**الجهد:** متوسط-كبير (6-8 أيام).
+
+#### Module 47 — Customer Bundle Builder (🟠 Phase 2)
+**الوصف:** العميل يختار 3+ منتجات لتكوين bundle مخصص مع auto-discount.
+**أهم الـ FRs:**
+- FR-47.1: قواعد قابلة للضبط: min/max products، فئات مؤهلة، tiers خصم.
+- FR-47.2: Bundle UI مع selected items، dynamic pricing، "complete bundle" CTA.
+- FR-47.3: تطبيق discount كـ Salla coupon عند checkout.
+- FR-47.4: لوحة: "Top customer-built combinations" لإعلام official bundles.
+
+**تكامل سلة:** Coupons API + Products API.
+**Dependencies:** لا شيء.
+**الجهد:** كبير (8-10 أيام).
+
+#### Module 50 — Out-of-Stock Substitute Engine (🟠 Phase 2)
+**الوصف:** اقتراح بدائل فورًا عند OOS + التقاط التفضيل.
+**أهم الـ FRs:**
+- FR-50.1: كشف OOS state عبر stock = 0 check.
+- FR-50.2: استعلام Products API للمنتجات المشابهة (فئة، سعر، attributes).
+- FR-50.3: عرض 3 بدائل + خيار "wait for original".
+- FR-50.4: تتبع substitute conversion rate مقابل wait rate.
+
+**تكامل سلة:** Products API للـ similarity queries.
+**Dependencies:** لا شيء.
+**الجهد:** متوسط (5-6 أيام).
+
+#### Module 52 — Smart Coupon Discovery (🟠 Phase 2)
+**الوصف:** بحث coupon مواجه للعميل + التقاط codes غير موجودة المبحوثة.
+**أهم الـ FRs:**
+- FR-52.1: شريط بحث في cart/checkout: "تبحث عن coupon؟"
+- FR-52.2: اقتراح coupons متاحة مؤهلة بناءً على cart contents.
+- FR-52.3: التقاط كل code names المبحوثة (حتى غير الموجودة) في `coupon_searches` table.
+- FR-52.4: لوحة: "Codes مبحوثة غير موجودة في النظام" → يكشف ghost influencer codes.
+
+**تكامل سلة:** Coupons API.
+**Dependencies:** لا شيء.
+**الجهد:** متوسط (4-6 أيام).
+
+#### Module 53 — Shipping Transparency Calculator (🟠 Phase 2)
+**الوصف:** حاسبة تكلفة شحن قبل checkout على PDP/Cart.
+**أهم الـ FRs:**
+- FR-53.1: City/region dropdown مع auto-detect من IP.
+- FR-53.2: عرض خيارات الشحن + التكلفة real-time.
+- FR-53.3: "أضف X ر.س لشحن مجاني" progress bar.
+- FR-53.4: تتبع shipping objection rate مقابل cart abandonment الأصلي.
+
+**تكامل سلة:** Shipping API (⚠️ **تحقق من التوفر**).
+**Dependencies:** لا شيء.
+**الجهد:** متوسط (5-7 أيام، يعتمد على API).
+
+#### Module 56 — Free Sample / Trial Request (🟠 Phase 2)
+**الوصف:** workflow طلب sample للمنتجات high-AOV (>500 ر.س).
+**أهم الـ FRs:**
+- FR-56.1: كشف منتجات مؤهلة (price threshold + sample-eligible tag).
+- FR-56.2: نموذج طلب sample مع address + phone.
+- FR-56.3: إنشاء Salla order مع sample SKU (custom flow).
+- FR-56.4: تتبع sample-to-purchase conversion + revenue attribution.
+
+**تكامل سلة:** Orders API.
+**Dependencies:** بنية إدارة الطلبات.
+**الجهد:** كبير (8-10 أيام، يشمل operational workflow).
+
+---
+
+### 27.4 ملخص الجهد الإجمالي
+
+| المرحلة | Modules | الجهد الإجمالي |
+|---|---|---|
+| MVP (Module 40 صريح) | 1 | 3-5 أيام |
+| Phase 1 (38, 39, 46, 48, 49, 51, 54, 55) | 8 | 25-35 يوم |
+| Phase 2 (37, 41, 42, 43, 44, 45, 47, 50, 52, 53, 56) | 11 | 55-75 يوم |
+| **الإجمالي** | **20** | **~80-110 يوم تطوير (~16-22 أسبوع)** |
+
+### 27.5 Critical Path Items
+
+هذه يمكن أن تعيق modules متعددة:
+1. **تحقق Salla checkout customization** — يعيق 37, 43 (وربما 53).
+2. **إعداد WhatsApp Business API** — يعيق إشعارات 44, 49, 51.
+3. **توفر Salla customer fields** — يعيق 49 (Birthday).
+4. **بنية session tracking** — يعيق 45 (Comparison Detector).
+
+### 27.6 ملاحظات Out of Scope للـ Roadmap
+
+- الـ modules المذكورة **ليست** جزءًا من MVP scope. بناؤها مبكرًا يعرّض timeline MVP للخطر.
+- كل module يجب أن يجتاز MVP kill criteria قبل بدء تطويره.
+- إعادة ترتيب الـ roadmap كل ربع بناءً على feedback المرشانت الحقيقي.
+
+---
+
 ## التوقيع
 
 | الدور | الاسم | التاريخ | الحالة |
