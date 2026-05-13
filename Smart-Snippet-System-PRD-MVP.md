@@ -48,7 +48,7 @@
 ### Vision
 A Customer Intent Intelligence Platform for Salla stores — captures *why* visitors don't buy, *what* they're waiting for, and *what* to fix on each product. Combined with a library of 30 plug-and-play conversion widgets covering social proof, urgency, trust, seasonal campaigns, popups, and engagement.
 
-### MVP Scope — Expanded (4 Core Features + 30 Widgets)
+### MVP Scope — Expanded (4 Core Features + 29 Widgets)
 
 **Core 4 Features (Customer Intent loop):**
 1. **Hesitation Capture Widget** (Why) — Exit intent + Product Clarity surveys
@@ -56,22 +56,22 @@ A Customer Intent Intelligence Platform for Salla stores — captures *why* visi
 3. **Intent Dashboard + Product Doctor Lite** (Fix) — Aggregated insights + rule-based recommendations
 4. **Widget Analytics** (Measure) — Per-widget performance metrics
 
-**30 Widgets (grouped by category):**
+**29 Widgets (grouped by category):**
 
 | Category | Count | Widgets |
 |---|---|---|
 | Social Proof | 3 | Live Viewer Counter · Today's Buyers Counter · Recent Purchase Toast |
 | Urgency | 2 | Low Stock Urgency · Stock Progress Bar |
-| Contact | 2 | Floating WhatsApp · Quick Contact |
+| Contact | 2 | Floating Marketing Button · Quick Contact |
 | UX | 2 | Scroll-to-Top · Sticky Add-to-Cart |
 | Timer | 2 | Sale Countdown · Free Shipping Countdown |
 | Seasonal | 5 | Ramadan Mode · National Day · White Friday · Eid Widget · Back to School |
 | Popup | 5 | Welcome Popup · Exit Intent Popup · Newsletter Signup · Cart Abandonment · Age Verification |
-| Trust | 4 | Trust Badges · Payment Methods · Shipping Info · Return Policy |
+| Trust | 3 | Trust Badges · Shipping Info · Return Policy |
 | Engagement | 4 | Wishlist Heart · Recently Viewed · Also Bought · Comparison Button |
 | Tool | 1 | Widget Customizer |
 
-**Total MVP items:** 4 core features + 30 widgets = **34 items**
+**Total MVP items:** 4 core features + 29 widgets = **33 items**
 
 ### Target Market (MVP)
 Saudi Arabian Salla stores in Beauty, Perfumes, Fashion. 2,000-30,000 monthly visits. 50-500 SKUs.
@@ -439,7 +439,7 @@ Every customer-facing email/WhatsApp contains a signed link to a PDPL consent ce
 
 ## 6. MVP Scope
 
-### What's In (Build These: 4 Core Features + 30 Widgets)
+### What's In (Build These: 4 Core Features + 29 Widgets)
 
 **Core Customer Intent Loop (Features 1-4) — see Sections 7-10 for detailed specs:**
 
@@ -450,7 +450,7 @@ Every customer-facing email/WhatsApp contains a signed link to a PDPL consent ce
 | 3 | Intent Dashboard + Product Doctor Lite | M32 + M34 | P0 (Core) |
 | 4 | Widget Analytics | M35 | P0 (Infrastructure) |
 
-**30 Widgets — see Section 26 for detailed specs per widget:**
+**29 Widgets — see Section 26 for detailed specs per widget:**
 
 | # | Widget | Category | Complexity |
 |---|---|---|---|
@@ -458,7 +458,7 @@ Every customer-facing email/WhatsApp contains a signed link to a PDPL consent ce
 | 2 | Today's Buyers Counter | Social Proof | Simple |
 | 3 | Recent Purchase Toast | Social Proof | Medium |
 | 4 | Low Stock Urgency | Urgency | Simple |
-| 5 | Floating WhatsApp | Contact | Very Simple |
+| 5 | Floating Marketing Button | Contact | Very Simple |
 | 6 | Scroll-to-Top | UX | Very Simple |
 | 7 | Sticky Add-to-Cart | UX | Simple |
 | 8 | Quick Contact | Contact | Simple |
@@ -476,14 +476,13 @@ Every customer-facing email/WhatsApp contains a signed link to a PDPL consent ce
 | 20 | Cart Abandonment | Popup | Medium |
 | 21 | Age Verification | Popup | Very Simple |
 | 22 | Trust Badges | Trust | Very Simple |
-| 23 | Payment Methods | Trust | Very Simple |
-| 24 | Shipping Info | Trust | Simple |
-| 25 | Return Policy | Trust | Very Simple |
-| 26 | Wishlist Heart | Engagement | Medium |
-| 27 | Recently Viewed | Engagement | Simple |
-| 28 | Also Bought | Engagement | Medium |
-| 29 | Comparison Button | Engagement | Medium |
-| 30 | Widget Customizer | Tool | Complex |
+| 23 | Shipping Info | Trust | Simple |
+| 24 | Return Policy | Trust | Very Simple |
+| 25 | Wishlist Heart | Engagement | Medium |
+| 26 | Recently Viewed | Engagement | Simple |
+| 27 | Also Bought | Engagement | Medium |
+| 28 | Comparison Button | Engagement | Medium |
+| 29 | Widget Customizer | Tool | Complex |
 
 ### What's Out (Deferred to Phase 1/2)
 
@@ -2408,10 +2407,10 @@ See section 15 for complete spec. Additional examples:
 ---
 
 
-## 26. Detailed Specifications — 30 Widgets
+## 26. Detailed Specifications — 29 Widgets
 
 > **SCOPE NOTICE:**
-> This section provides **full-spec specifications** for all 30 widgets in the MVP scope, matching the depth of Features 1-4 (Sections 7-10). Each widget spec includes: description, user flow, functional requirements, UX requirements, configuration options, trigger logic (where applicable), data captured, edge cases, mobile considerations, accessibility, and Salla integration notes.
+> This section provides **full-spec specifications** for all 29 widgets in the MVP scope, matching the depth of Features 1-4 (Sections 7-10). Each widget spec includes: description, user flow, functional requirements, UX requirements, configuration options, trigger logic (where applicable), data captured, edge cases, mobile considerations, accessibility, and Salla integration notes.
 >
 > Widgets are grouped by category for navigation:
 > - 26.1 Social Proof (3)
@@ -2421,7 +2420,7 @@ See section 15 for complete spec. Additional examples:
 > - 26.5 Timer (2)
 > - 26.6 Seasonal (5)
 > - 26.7 Popup (5)
-> - 26.8 Trust (4)
+> - 26.8 Trust (3)
 > - 26.9 Engagement (4)
 > - 26.10 Tool (1)
 >
@@ -3060,107 +3059,157 @@ interface StockProgressImpression {
 
 ### 26.3 Contact Widgets
 
-#### 26.3.1 Widget 5 — Floating WhatsApp
+#### 26.3.1 Widget 5 — Floating Marketing Button
 
 ##### Description
-A persistent floating action button (FAB) anchored to a corner of every page that opens a WhatsApp chat with the merchant's business number when tapped. Pre-fills a context-aware message (e.g., current product name + URL). The most-requested widget for Saudi e-commerce — WhatsApp is the dominant pre-purchase customer support channel.
+A persistent, fully-configurable floating action button (FAB) anchored to a corner of every page. The merchant chooses the destination — WhatsApp, Instagram, Snapchat, TikTok, Telegram, phone (tel:), email (mailto:), or **any custom marketing URL** (campaign landing page, lead form, booking page, etc.). One configurable button the merchant uses for whichever marketing channel they want to push.
 
-**Pre-filled message templates:**
-- On PDP: "مرحباً، عندي سؤال حول [اسم المنتج]: [URL]"
-- On Cart: "مرحباً، عندي سؤال حول طلبي"
-- On other pages: "مرحباً، عندي استفسار"
+> **Positioning note:** This widget is *not* a "WhatsApp button" — Salla ships a native WhatsApp button by default. This widget is a **flexible marketing CTA** that the merchant can point at any channel/campaign of their choice. If the merchant wants WhatsApp, they configure it that way; if they want Instagram followers, they point it there; if they want to drive traffic to a Black Friday landing page, that works too.
+
+**Built-in channel presets (one-click setup):**
+- WhatsApp Chat (wa.me)
+- Instagram Profile
+- Snapchat Profile / Snap link
+- TikTok Profile
+- Telegram Channel
+- Phone Call (tel:)
+- Email (mailto:)
+- Custom URL
 
 ##### User Flow
 
 ```
 [Customer browses any page]
       ↓
-[FAB visible at bottom corner]
+[FAB visible at bottom corner with merchant's chosen icon]
       ↓
 [Customer taps FAB]
       ↓
-[Opens wa.me/{phone}?text={pre-filled message}]
+[Opens merchant's configured destination URL in a new tab/app]
       ↓
-[WhatsApp app/web opens with merchant chat + pre-filled text]
+[For WhatsApp/Phone: opens app directly. For social/URL: opens link.]
       ↓
-[Customer can edit and send]
+[Click event logged in Widget Analytics]
 ```
 
 ##### Functional Requirements
 
 **FR-W5.1** Widget MUST render as a FAB on every configured page type.
 
-**FR-W5.2** Tapping the FAB MUST open `https://wa.me/{phone}?text={url_encoded_message}` in a new tab/app.
+**FR-W5.2** Tapping the FAB MUST navigate to the merchant-configured destination URL in a new tab (or trigger native handler for `tel:` / `mailto:`).
 
-**FR-W5.3** Pre-filled message MUST be context-aware: include current product name + URL on PDP; cart context on cart; generic otherwise.
+**FR-W5.3** Widget MUST support **channel presets** (WhatsApp, Instagram, Snapchat, TikTok, Telegram, Phone, Email, Custom URL) that pre-fill icon + color + URL template.
 
-**FR-W5.4** Phone number MUST be configured in international E.164 format without leading `+` (e.g., `966501234567`).
+**FR-W5.4** For channel = WhatsApp: Widget MUST construct `https://wa.me/{phone}?text={url_encoded_message}` with optional context-aware message (product name + URL on PDP).
 
-**FR-W5.5** Widget MUST support business-hours mode: show "online" indicator during configured hours, show "offline" message outside hours.
+**FR-W5.5** For channel = Phone: Widget MUST use `tel:{number}` protocol.
 
-**FR-W5.6** Widget MUST optionally show a tooltip/balloon ("هل تحتاج مساعدة؟") after `tooltip_delay_seconds` (default: 8).
+**FR-W5.6** For channel = Email: Widget MUST use `mailto:{email}?subject={subject}` protocol.
 
-**FR-W5.7** Widget MUST track clicks as a `whatsapp_click` event (analytics).
+**FR-W5.7** For channel = Social (Instagram/Snapchat/TikTok/Telegram): Widget MUST navigate to the configured profile/channel URL.
 
-**FR-W5.8** Widget MUST NOT show on checkout pages by default (avoid distracting from conversion).
+**FR-W5.8** For channel = Custom URL: Widget MUST navigate to any merchant-configured URL (validated as HTTPS).
 
-**FR-W5.9** Widget MUST be dismissible by user, with state persisted in `localStorage` for `dismissal_persistence_hours` (default: 24).
+**FR-W5.9** Widget MUST support custom icon upload (PNG/SVG, max 100KB) in addition to channel presets.
 
-**FR-W5.10** Widget MUST collide-detect with Scroll-to-Top, Sticky ATC, and Recent Purchase Toast (z-index + offset).
+**FR-W5.10** Widget MUST support business-hours mode (optional, useful for WhatsApp/Phone): show "online" / "offline" state based on configured hours.
+
+**FR-W5.11** Widget MUST optionally show a tooltip/balloon (e.g., "تابعنا على إنستجرام" / "احجز موعد") after `tooltip_delay_seconds` (default: 8).
+
+**FR-W5.12** Widget MUST track clicks as a `marketing_button_click` event with `channel` property for analytics segmentation.
+
+**FR-W5.13** Widget MUST NOT show on checkout pages by default.
+
+**FR-W5.14** Widget MUST be dismissible by user, with state persisted in `localStorage` for `dismissal_persistence_hours` (default: 24).
+
+**FR-W5.15** Widget MUST collide-detect with Scroll-to-Top, Sticky ATC, and Recent Purchase Toast (z-index + offset).
+
+**FR-W5.16** Widget MUST support **scheduled activation** (start/end dates) — merchant can configure "show this Instagram CTA only during the campaign window".
 
 ##### UX Requirements
 
 - **Position:** Bottom-end (right in LTR, left in RTL).
 - **Size:** 56px circle on desktop, 52px on mobile.
-- **Visual:** WhatsApp green `#25D366` background, white WhatsApp icon.
+- **Visual:** Channel-appropriate color preset (WhatsApp green, Instagram gradient, Snapchat yellow, etc.) — or custom hex if merchant overrides.
+- **Icon:** Channel-appropriate icon (preset library) OR custom uploaded icon.
 - **Shadow:** Subtle elevation shadow.
 - **Animation:** Subtle bounce on first view, hover scale 1.05.
 - **Tooltip:** Balloon that appears once after delay, dismissible.
-- **Offline state:** Greyed-out FAB with tooltip "نرد على رسائلك خلال {hours}".
+- **Offline state (WhatsApp/Phone only):** Greyed-out FAB with tooltip "نرد على رسائلك خلال {hours}".
 
 ##### Configuration Options
 
 | Setting | Type | Default | Description |
 |---|---|---|---|
 | `enabled` | boolean | true | Master toggle |
-| `phone_number` | string | (required) | E.164 without `+` |
+| `channel` | enum | whatsapp | whatsapp, instagram, snapchat, tiktok, telegram, phone, email, custom_url |
+| `destination_url` | string | (required) | Pre-filled by preset OR fully custom |
+| `whatsapp_phone` | string | (if channel=whatsapp) | E.164 without `+` (e.g., `966501234567`) |
+| `phone_number` | string | (if channel=phone) | E.164 for tel: |
+| `email_address` | string | (if channel=email) | mailto: target |
+| `email_subject` | string | (optional) | Pre-filled subject for mailto: |
 | `pages` | array | [all_except_checkout] | Where FAB shows |
 | `position` | enum | bottom-end | bottom-start, bottom-end |
 | `offset_x_px` | int | 16 | Horizontal offset |
 | `offset_y_px` | int | 16 | Vertical offset |
-| `color_background` | string | "#25D366" | FAB bg color |
-| `icon_color` | string | "#FFFFFF" | Icon color |
-| `show_tooltip` | boolean | true | Show "Need help?" tooltip |
+| `color_background` | string | (preset) | FAB bg color (preset default, overridable) |
+| `icon_source` | enum | preset | preset, custom_upload |
+| `icon_preset` | enum | (channel default) | whatsapp, instagram, snapchat, tiktok, telegram, phone, email, link, custom |
+| `icon_custom_url` | string | (optional) | Uploaded PNG/SVG URL |
+| `icon_color` | string | "#FFFFFF" | Icon color (for preset icons) |
+| `show_tooltip` | boolean | true | Show contextual tooltip |
 | `tooltip_delay_seconds` | int | 8 | When to show tooltip |
-| `tooltip_text_ar` | string | "هل تحتاج مساعدة؟" | AR |
-| `tooltip_text_en` | string | "Need help?" | EN |
+| `tooltip_text_ar` | string | (channel default) | AR tooltip (e.g., "تابعنا على إنستجرام") |
+| `tooltip_text_en` | string | (channel default) | EN tooltip |
 | `tooltip_dismiss_persistence_hours` | int | 24 | Per-user dismissal duration |
-| `business_hours_enabled` | boolean | false | Use business hours logic |
+| `business_hours_enabled` | boolean | false | Use business hours logic (WhatsApp/Phone) |
 | `business_hours_start` | string | "09:00" | KSA time start (HH:MM) |
 | `business_hours_end` | string | "22:00" | KSA time end |
 | `business_days` | array | [sun,mon,tue,wed,thu,sat] | Working days |
 | `offline_message_ar` | string | "نرد على رسائلك خلال {hours}" | Offline tooltip AR |
-| `prefilled_message_pdp_ar` | string | "مرحباً، عندي سؤال حول {product}: {url}" | Template |
-| `prefilled_message_cart_ar` | string | "مرحباً، عندي سؤال حول طلبي" | Template |
-| `prefilled_message_generic_ar` | string | "مرحباً، عندي استفسار" | Template |
-| `prefilled_message_pdp_en` | string | "Hi, I have a question about {product}: {url}" | EN |
-| `prefilled_message_cart_en` | string | "Hi, I have a question about my order" | EN |
-| `prefilled_message_generic_en` | string | "Hi, I have a question" | EN |
+| `wa_prefilled_message_pdp_ar` | string | "مرحباً، عندي سؤال حول {product}: {url}" | WhatsApp template |
+| `wa_prefilled_message_cart_ar` | string | "مرحباً، عندي سؤال حول طلبي" | WhatsApp template |
+| `wa_prefilled_message_generic_ar` | string | "مرحباً، عندي استفسار" | WhatsApp template |
+| `wa_prefilled_message_pdp_en` | string | "Hi, I have a question about {product}: {url}" | EN |
+| `wa_prefilled_message_cart_en` | string | "Hi, I have a question about my order" | EN |
+| `wa_prefilled_message_generic_en` | string | "Hi, I have a question" | EN |
 | `allow_dismiss` | boolean | false | Allow user to hide FAB |
+| `schedule_start_date` | datetime | (optional) | Auto-activate from this date |
+| `schedule_end_date` | datetime | (optional) | Auto-deactivate after this date |
+| `utm_append` | boolean | true | Append UTM params for attribution (for custom URLs) |
+| `utm_source` | string | "smart_snippet_fab" | UTM source value |
+| `utm_medium` | string | "fab" | UTM medium |
+| `utm_campaign` | string | (optional) | UTM campaign |
+
+##### Channel Presets (built-in)
+
+| Channel | Default Icon | Default Color | URL Template | Notes |
+|---|---|---|---|---|
+| WhatsApp | WhatsApp logo | `#25D366` | `https://wa.me/{phone}?text={msg}` | Context-aware message |
+| Instagram | Instagram glyph | `#E1306C` (gradient) | `https://instagram.com/{handle}` | Drive followers |
+| Snapchat | Snapchat ghost | `#FFFC00` | `https://snapchat.com/add/{handle}` OR Snapcode link | |
+| TikTok | TikTok glyph | `#000000` | `https://tiktok.com/@{handle}` | |
+| Telegram | Telegram paper plane | `#0088CC` | `https://t.me/{channel}` | |
+| Phone | Phone receiver | `#1E88E5` | `tel:{number}` | Direct dial |
+| Email | Envelope | `#757575` | `mailto:{email}?subject={subj}` | Pre-filled subject |
+| Custom URL | Link icon (or upload) | Brand color | `{any_https_url}` | Free-form marketing |
 
 ##### Data Captured
 
 ```typescript
-interface WhatsAppClick {
+interface MarketingButtonClick {
   store_id: string;
   session_id: string;
   customer_id?: string;
+  channel: 'whatsapp' | 'instagram' | 'snapchat' | 'tiktok' | 'telegram' | 'phone' | 'email' | 'custom_url';
+  destination_url: string;
   page_type: 'pdp' | 'cart' | 'category' | 'home' | 'other';
   product_id?: string;
-  is_business_hours: boolean;
+  is_business_hours?: boolean;     // only for WhatsApp/Phone
   clicked_at: timestamp;
   device_type: 'mobile' | 'desktop' | 'tablet';
   referrer: string;
+  utm_campaign?: string;
 }
 ```
 
@@ -3168,40 +3217,47 @@ interface WhatsAppClick {
 
 | Edge Case | Behavior |
 |---|---|
-| Phone number not configured | Hide widget entirely, log warning to merchant dashboard |
-| Invalid phone format | Validate on save, reject save with error |
+| Required destination field empty | Hide widget entirely, show warning in merchant dashboard |
+| Invalid URL format | Validate on save, reject save with error |
+| Channel = WhatsApp + invalid phone | Validate on save, reject |
 | User on desktop without WhatsApp | wa.me redirects to WhatsApp Web — works fine |
-| Outside business hours | Show offline state, but link still works (sends message anyway) |
-| Page has no product context | Fall back to generic message |
-| Customer language mismatch | Use customer's detected language for template |
-| Page URL too long | Truncate URL parameter (whatsapp URL length limit) |
+| User on desktop, channel = Phone (tel:) | Some browsers prompt to call via FaceTime/Skype — acceptable |
+| Outside business hours (WhatsApp/Phone) | Show offline state, but link still works |
+| Custom URL is HTTP (not HTTPS) | Reject on save (security) |
+| Custom uploaded icon too large | Reject upload, show error |
+| Schedule end_date passed | Auto-deactivate widget |
+| Schedule start_date in future | Hide widget until start |
+| Page has no product context (WhatsApp template) | Fall back to generic message |
+| Customer language mismatch | Use customer's detected language for tooltip/template |
 | Click triggers popup blocker | Use direct anchor `<a href>` not `window.open` |
-| Merchant changes number | All future clicks use new number |
 | User dismissed FAB | Respect dismissal up to `dismissal_persistence_hours` |
+| Multiple channels enabled (conflict) | Only ONE channel per widget instance — merchant must use Quick Contact (#8) for multi-channel |
 
 ##### Mobile Considerations
 - Slightly smaller FAB (52px).
-- Higher z-index than Sticky ATC's contact icon (so it's not double-shown).
-- On mobile, `wa.me` opens the WhatsApp app directly.
+- Higher z-index than Sticky ATC's contact icon.
+- On mobile, native protocols (`tel:`, `mailto:`, `wa.me`) open the respective app directly.
+- Social URLs deep-link to native apps when installed (e.g., `instagram://user?username=X`).
 
 ##### Accessibility
-- `<a>` element with `aria-label="افتح محادثة واتساب"`.
+- `<a>` element with `aria-label` describing the action (e.g., "تابعنا على إنستجرام", "احجز موعد", "افتح محادثة واتساب").
 - Sufficient touch target (56×56 desktop, 52×52 mobile, both ≥44×44 minimum).
 - Tooltip dismissible via keyboard (Escape).
-- High contrast green/white meets WCAG AA.
+- High contrast meets WCAG AA for chosen color combinations.
+- For custom icons: alt text required from merchant on upload.
 
 ##### Salla Integration
-- Phone number stored in our config (merchant onboarding step).
-- Product name from `salla.product.name` (Twilight global).
-- Page URL from `window.location.href`.
-- No Salla API calls required.
+- All configuration stored in our DB (no Salla API needed).
+- For WhatsApp channel: product name from `salla.product.name` (Twilight global), page URL from `window.location.href`.
+- UTM params appended automatically for analytics attribution (if `utm_append=true`).
+- Click events captured in our Widget Analytics (Section 10).
 
 ---
 
 #### 26.3.2 Widget 8 — Quick Contact
 
 ##### Description
-A floating button (or expandable menu) that offers multiple contact methods in one place: WhatsApp, phone call, email, contact form, or store address (Google Maps). Tapping the button opens a small panel listing available contact methods configured by the merchant. Complements (not replaces) the Floating WhatsApp widget when multi-channel contact is desired.
+A floating button (or expandable menu) that offers multiple contact methods in one place: WhatsApp, phone call, email, contact form, or store address (Google Maps). Tapping the button opens a small panel listing available contact methods configured by the merchant. Complements (not replaces) the Floating Marketing Button widget when multi-channel contact is desired.
 
 ##### User Flow
 
@@ -3250,7 +3306,7 @@ A floating button (or expandable menu) that offers multiple contact methods in o
 
 ##### UX Requirements
 
-- **Position:** Same as Floating WhatsApp (bottom-end). MUTUALLY EXCLUSIVE with Floating WhatsApp — one or the other, not both.
+- **Position:** Same as Floating Marketing Button (bottom-end). MUTUALLY EXCLUSIVE with Floating Marketing Button — one or the other, not both.
 - **FAB icon:** Generic "contact" icon (envelope + phone overlay) or "headset".
 - **Size:** 56px circle.
 - **Expansion:** Vertical stack of mini-FABs (40px each), animated in with stagger (50ms delay each).
@@ -3378,13 +3434,13 @@ A small floating button that appears after the customer scrolls down a configura
 
 **FR-W6.5** Widget MUST respect `prefers-reduced-motion` — use instant scroll instead of smooth.
 
-**FR-W6.6** Widget MUST collide-avoid with Floating WhatsApp / Quick Contact (stack vertically with 8px gap).
+**FR-W6.6** Widget MUST collide-avoid with Floating Marketing Button / Quick Contact (stack vertically with 8px gap).
 
 **FR-W6.7** Button MUST be visible on long category pages, homepage, and PDP.
 
 ##### UX Requirements
 
-- **Position:** Bottom-end, stacked above Floating WhatsApp / Quick Contact.
+- **Position:** Bottom-end, stacked above Floating Marketing Button / Quick Contact.
 - **Size:** 44px circle.
 - **Visual:** Up-arrow icon, semi-transparent neutral background.
 - **Animation:** Fade-in (200ms) when threshold crossed, fade-out (200ms) otherwise.
@@ -5137,101 +5193,7 @@ interface TrustBadgeImpression {
 
 ---
 
-#### 26.8.2 Widget 23 — Payment Methods
-
-##### Description
-A visual row of payment method logos (Mada, Visa, Mastercard, Apple Pay, STC Pay, Tabby, Tamara, etc.) displayed on PDP, cart, and footer. Communicates accepted payment options and increases checkout confidence. Pulled from Salla store configuration (which payment methods the merchant has enabled).
-
-##### User Flow
-
-```
-[Customer browses PDP / cart / footer]
-      ↓
-[Row of payment logos renders]
-      ↓
-[Static display, informational only]
-```
-
-##### Functional Requirements
-
-**FR-W23.1** Widget MUST display logos for payment methods actually enabled on the Salla store.
-
-**FR-W23.2** Widget MUST auto-sync with Salla payment methods config (poll daily OR webhook on change).
-
-**FR-W23.3** Widget MUST render up to 12 logos in a row.
-
-**FR-W23.4** Each logo MUST be a small image (40-48px wide, fixed height).
-
-**FR-W23.5** Logos MUST be from official brand kits (correct colors, dimensions, spacing).
-
-**FR-W23.6** Widget MUST hide if no payment methods are enabled (rare edge case).
-
-**FR-W23.7** Merchant MUST be able to reorder logos (drag-and-drop in dashboard).
-
-**FR-W23.8** Widget MUST support BNPL labels with regulatory text ("split into 4 installments").
-
-##### UX Requirements
-
-- **Layout:** Horizontal row, justified evenly or left-aligned.
-- **Background:** Light neutral or transparent.
-- **Logos:** Equal heights (28-32px), variable widths.
-- **Spacing:** 12px gap.
-- **Frame:** Optional subtle frame around the row.
-
-##### Configuration Options
-
-| Setting | Type | Default | Description |
-|---|---|---|---|
-| `enabled` | boolean | true | Master toggle |
-| `pages` | array | [pdp, cart, footer] | Where to show |
-| `position` | object | { pdp: below_price, cart: above_checkout, footer: end } | Per-page placement |
-| `auto_sync_from_salla` | boolean | true | Use Salla config |
-| `manual_override_methods` | array | [] | Force display these |
-| `excluded_methods` | array | [] | Hide these |
-| `logo_height_px` | int | 32 | Logo height |
-| `show_bnpl_labels` | boolean | true | Tabby/Tamara installment label |
-
-##### Data Captured
-
-```typescript
-interface PaymentMethodsImpression {
-  store_id: string;
-  session_id: string;
-  page_type: string;
-  methods_shown: string[];   // ['mada', 'visa', 'apple_pay', 'tabby', ...]
-  shown_at: timestamp;
-}
-```
-
-##### Edge Cases
-
-| Edge Case | Behavior |
-|---|---|
-| Merchant enables/disables method in Salla | Re-sync via webhook or daily poll |
-| Custom payment method not in our library | Hide unknown methods OR show generic icon |
-| BNPL minimum cart value | Show note "for orders above X SAR" |
-| Currency-specific methods | Show based on store's primary currency |
-| Many methods (>12) | Wrap to multiple rows or scroll |
-| One method only | Display as-is (no widget hidden) |
-| Salla API fails | Use last-known cached list (TTL 7 days) |
-
-##### Mobile Considerations
-- Wraps to 2-3 rows.
-- Smaller logos (24-28px).
-- Centered on mobile, left-aligned desktop.
-
-##### Accessibility
-- Each logo `<img>` with `alt` describing method (e.g., "Mada", "Apple Pay").
-- Container `role="region"` `aria-label="طرق الدفع المقبولة"`.
-
-##### Salla Integration
-- Reads enabled methods via `GET /admin/v2/payment-methods`.
-- Subscribes to a configuration-changed webhook (if Salla provides) OR daily poll.
-- Logos hosted on our CDN (not Salla's), curated for quality.
-
----
-
-#### 26.8.3 Widget 24 — Shipping Info
+#### 26.8.2 Widget 23 — Shipping Info
 
 ##### Description
 A compact info card displayed on PDP and cart that summarizes shipping options: estimated delivery time, shipping cost (or "free above X"), and supported regions. Reduces purchase hesitation by answering "when will I get this?" upfront.
@@ -5336,7 +5298,7 @@ interface ShippingInfoView {
 
 ---
 
-#### 26.8.4 Widget 25 — Return Policy
+#### 26.8.3 Widget 24 — Return Policy
 
 ##### Description
 A compact card on PDP, cart, and footer that surfaces the merchant's return policy in a digestible format. Builds confidence at the point of decision. Links to the full policy page for full text. Typical content: "30-day returns, free pickup, full refund".
@@ -5430,7 +5392,7 @@ interface ReturnPolicyView {
 
 ### 26.9 Engagement Widgets
 
-#### 26.9.1 Widget 26 — Wishlist Heart
+#### 26.9.1 Widget 25 — Wishlist Heart
 
 ##### Description
 A heart-shaped icon on product cards and PDPs that customers can tap to save a product to a personal wishlist. Persists across sessions (for logged-in customers) or per-device (for anonymous users via localStorage). Wishlist accessible from a dedicated page or dropdown.
@@ -5565,7 +5527,7 @@ interface WishlistEvent {
 
 ---
 
-#### 26.9.2 Widget 27 — Recently Viewed
+#### 26.9.2 Widget 26 — Recently Viewed
 
 ##### Description
 A horizontal carousel of products the customer has recently viewed (last 10-20 items). Helps customers re-find products they liked, increasing return-visit conversion. Displays on homepage, PDP (when scrolled past main content), and a dedicated section in the customer account area.
@@ -5686,7 +5648,7 @@ interface RecentlyViewedEvent {
 
 ---
 
-#### 26.9.3 Widget 28 — Also Bought
+#### 26.9.3 Widget 27 — Also Bought
 
 ##### Description
 A horizontal carousel on PDP titled "Customers also bought" or "Frequently bought together" that displays products commonly purchased alongside the current product. Drives cross-sell. Algorithm uses co-purchase history from Salla orders.
@@ -5818,7 +5780,7 @@ interface AlsoBoughtEvent {
 
 ---
 
-#### 26.9.4 Widget 29 — Comparison Button
+#### 26.9.4 Widget 28 — Comparison Button
 
 ##### Description
 A "Compare" button on product cards and PDPs that adds the product to a comparison tray. Customer can compare up to 4 products side-by-side in a dedicated comparison view, showing attributes like price, specifications, ratings, and availability. Decision-support widget for considered purchases.
@@ -5949,10 +5911,10 @@ interface ComparisonEvent {
 
 ### 26.10 Tool Widget
 
-#### 26.10.1 Widget 30 — Widget Customizer
+#### 26.10.1 Widget 29 — Widget Customizer
 
 ##### Description
-The most complex item in the MVP — a merchant-facing visual editor that lets merchants configure, preview, and deploy any of the 29 customer-facing widgets with a no-code interface. Built into the merchant dashboard. Replaces JSON config editing with a polished UI featuring forms, color pickers, live preview, and one-click publish.
+The most complex item in the MVP — a merchant-facing visual editor that lets merchants configure, preview, and deploy any of the 28 customer-facing widgets with a no-code interface. Built into the merchant dashboard. Replaces JSON config editing with a polished UI featuring forms, color pickers, live preview, and one-click publish.
 
 **The Widget Customizer is the central control plane for the entire widget library.**
 
@@ -5975,7 +5937,7 @@ The most complex item in the MVP — a merchant-facing visual editor that lets m
       ↓
 [Navigates to "Widgets" section]
       ↓
-[Widget gallery shows all 29 widgets organized by category]
+[Widget gallery shows all 28 widgets organized by category]
       ↓
 [Merchant clicks "Configure" on Live Viewer Counter]
       ↓
@@ -5997,7 +5959,7 @@ The most complex item in the MVP — a merchant-facing visual editor that lets m
 
 ##### Functional Requirements
 
-**FR-W30.1** Widget gallery MUST list all 29 customer-facing widgets, organized by 9 categories (Section 26.1-26.9).
+**FR-W30.1** Widget gallery MUST list all 28 customer-facing widgets, organized by 9 categories (Section 26.1-26.9).
 
 **FR-W30.2** Each widget card MUST show: name, category, status (active/draft/disabled), preview thumbnail, complexity rating.
 
@@ -6035,7 +5997,7 @@ The most complex item in the MVP — a merchant-facing visual editor that lets m
 
 **FR-W30.19** Customizer MUST support import/export of widget configs as JSON (for sharing between stores or backups).
 
-**FR-W30.20** Customizer MUST detect and warn about conflicting widget combinations (e.g., enabling both Floating WhatsApp and Quick Contact).
+**FR-W30.20** Customizer MUST detect and warn about conflicting widget combinations (e.g., enabling both Floating Marketing Button and Quick Contact).
 
 ##### UX Requirements
 
@@ -6105,7 +6067,7 @@ The most complex item in the MVP — a merchant-facing visual editor that lets m
    - Shows budget bar: "Current 38KB / Budget 50KB" green/orange/red.
 
 9. **Conflict Detector**
-   - Static rules: "Floating WhatsApp + Quick Contact = pick one".
+   - Static rules: "Floating Marketing Button + Quick Contact = pick one".
    - Position collision detection: "Multiple widgets requested bottom-right".
    - Page placement clashes.
 
@@ -6239,9 +6201,9 @@ Many widgets interact with each other in important ways. This table summarizes t
 
 | Widget A | Widget B | Interaction |
 |---|---|---|
-| Floating WhatsApp | Quick Contact | Mutually exclusive — only one |
-| Floating WhatsApp | Scroll-to-Top | Stack vertically (Scroll-to-Top above WA) |
-| Floating WhatsApp | Sticky ATC | WA z-index higher; both visible |
+| Floating Marketing Button | Quick Contact | Mutually exclusive — only one |
+| Floating Marketing Button | Scroll-to-Top | Stack vertically (Scroll-to-Top above WA) |
+| Floating Marketing Button | Sticky ATC | WA z-index higher; both visible |
 | Recent Purchase Toast | Sticky ATC | Toasts position above ATC bar |
 | Hesitation Capture (Feature 1) | Exit Intent Popup | Mutually exclusive per session |
 | Welcome Popup | Age Verification | Age Verification fires first; Welcome waits |
@@ -6253,7 +6215,6 @@ Many widgets interact with each other in important ways. This table summarizes t
 | Comparison Button | Also Bought | Compare button on recommendation cards |
 | All Popups | Each other | Global quiet period (30s) between popups |
 | Ramadan Mode | Other Popups | Aggressive popups paused during Iftar window |
-| Trust Badges | Payment Methods | Both can show; merchant configures positions |
 | Newsletter Signup | Welcome Popup | If welcome has signup → suppress newsletter popup |
 
 ---
@@ -6303,6 +6264,6 @@ Many widgets interact with each other in important ways. This table summarizes t
 
 **نهاية PRD — MVP**
 
-> **التحدي الأكبر:** الانضباط بـ scope الـ MVP. أي إضافة بعد الـ 34 item = scope creep.
+> **التحدي الأكبر:** الانضباط بـ scope الـ MVP. أي إضافة بعد الـ 33 item = scope creep.
 > **الـ Success:** Submission rate ≥3% + Trial-to-paid ≥15% + 30-day retention ≥70%
-> **النطاق:** 4 features أساسية + 30 widget = 34 item قابلين للتسليم.
+> **النطاق:** 4 features أساسية + 29 widget = 33 item قابلين للتسليم.
