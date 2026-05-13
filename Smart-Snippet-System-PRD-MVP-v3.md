@@ -526,30 +526,6 @@ A non-intrusive widget that asks visitors why they're not converting, captures s
 - **Mode A: Exit Intent** — Shows when visitor signals intent to leave PDP or Cart
 - **Mode B: Product Clarity** — Shows after scroll without add-to-cart on PDP
 
-### 7.2 User Flow
-
-```
-[Customer visits PDP]
-      ↓
-[Browses 30+ seconds, no add to cart]
-      ↓
-[Trigger fires]
-      ├── Desktop: mouseleave event toward top
-      └── Mobile: scroll-up direction + idle 5s
-      ↓
-[Widget appears as modal/sheet]
-      ↓
-[Customer taps one option] → Submit
-              OR
-[Customer types in "Other"] → Submit
-              OR
-[Customer dismisses] → Track dismissal event
-      ↓
-[Thank you message: 2 seconds]
-      ↓
-[Widget closes]
-```
-
 ### 7.3 Functional Requirements
 
 **FR-1.1** Widget MUST render on Product Detail Page (PDP) and Cart pages only (configurable per merchant).
@@ -604,38 +580,6 @@ A non-intrusive widget that asks visitors why they're not converting, captures s
 
 ### 7.5 Configuration Options (Per Merchant)
 
-```typescript
-interface HesitationWidgetConfig {
-  enabled: boolean;
-  triggers: {
-    exitIntent: {
-      enabled: boolean;
-      pages: ('pdp' | 'cart')[];
-      minTimeOnPage: number; // seconds, default 30
-    };
-    productClarity: {
-      enabled: boolean;
-      scrollThreshold: number; // %, default 50
-      idleTime: number; // seconds, default 60
-    };
-  };
-  reasons: {
-    id: string;
-    label_ar: string;
-    label_en: string;
-    enabled: boolean;
-    order: number;
-  }[];
-  allowFreeText: boolean;
-  freeTextPlaceholder_ar: string;
-  freeTextPlaceholder_en: string;
-  thankYouMessage_ar: string;
-  thankYouMessage_en: string;
-  showRewardCoupon: boolean; // optional incentive
-  couponCode?: string; // if showRewardCoupon
-}
-```
-
 **Default Reasons (Beauty/Perfumes vertical):**
 1. السعر مرتفع / Price too high
 2. الشحن غير واضح / Unclear shipping
@@ -647,80 +591,10 @@ interface HesitationWidgetConfig {
 ### 7.6 Trigger Logic
 
 **Exit Intent — Desktop:**
-```javascript
-// Pseudo-code
-document.addEventListener('mouseleave', (e) => {
-  if (e.clientY < 20 && !triggered) {
-    triggered = true;
-    showWidget();
-  }
-});
-```
 
 **Exit Intent — Mobile (alternative):**
-```javascript
-// Idle + scroll-up detection
-let lastScrollY = window.scrollY;
-let idleTimer;
-
-window.addEventListener('scroll', () => {
-  const currentY = window.scrollY;
-  if (currentY < lastScrollY - 100 && !triggered) {
-    triggered = true;
-    showWidget();
-  }
-  lastScrollY = currentY;
-  
-  clearTimeout(idleTimer);
-  idleTimer = setTimeout(() => {
-    if (!triggered && timeOnPage > 30) {
-      showWidget(); // backup: idle 30s
-    }
-  }, 30000);
-});
-```
 
 **Product Clarity (scroll-based):**
-```javascript
-// Fires after scrolling past 50% + 60s on page
-const scrollListener = () => {
-  if (scrollPercent() > 50 && timeOnPage > 60 && !triggered) {
-    triggered = true;
-    showWidget();
-  }
-};
-```
-
-### 7.7 Data Captured
-
-```typescript
-interface HesitationSubmission {
-  id: string; // UUID
-  merchant_id: string;
-  widget_id: string;
-  trigger_mode: 'exit_intent' | 'product_clarity';
-  reason_id?: string; // if predefined
-  reason_label?: string; // computed at submission time
-  free_text?: string; // sanitized
-  product_id: string;
-  product_handle: string;
-  product_price: number;
-  page_url: string;
-  page_type: 'pdp' | 'cart';
-  customer_id?: string; // if logged in to Salla
-  session_id: string;
-  device_type: 'desktop' | 'mobile' | 'tablet';
-  user_agent: string;
-  referrer?: string;
-  utm_source?: string;
-  utm_medium?: string;
-  utm_campaign?: string;
-  time_on_page_seconds: number;
-  scroll_depth_percent: number;
-  created_at: timestamp;
-  ip_country?: string; // for analytics, not stored as PII
-}
-```
 
 ### 7.8 Edge Cases
 
@@ -755,28 +629,6 @@ interface HesitationSubmission {
 
 ### 8.1 Description
 Captures latent interest from visitors who don't buy due to price, missing variant (color/size), or wanting to follow updates. Aggregates into Multi-Dimensional Interest Graph.
-
-### 8.2 User Flow
-
-```
-[Customer on PDP]
-      ↓
-[Sees "نبهني" button next to Add to Cart]
-      ↓
-[Taps button]
-      ↓
-[Modal shows interest options]
-      ↓
-[Customer selects: price drop / variant / follow]
-      ↓
-[Enters phone number (Saudi format)]
-      ↓
-[PDPL consent checkbox (unchecked by default)]
-      ↓
-[Submit] → Confirmation
-      ↓
-[Customer receives WhatsApp/SMS when trigger fires]
-```
 
 ### 8.3 Functional Requirements
 
@@ -821,67 +673,6 @@ Captures latent interest from visitors who don't buy due to price, missing varia
 - "🔒 بياناتك محمية وفق نظام PDPL"
 - "✋ يمكنك إلغاء التنبيهات في أي وقت"
 
-### 8.5 Configuration Options
-
-```typescript
-interface InterestWidgetConfig {
-  enabled: boolean;
-  buttonPosition: 'next_to_add_to_cart' | 'below_add_to_cart' | 'sticky_bottom';
-  buttonLabel_ar: string;
-  buttonLabel_en: string;
-  enabledInterestTypes: {
-    targetPrice: boolean;
-    variantColor: boolean;
-    variantSize: boolean;
-    followProduct: boolean;
-    followCategory: boolean; // off by default
-    followBrand: boolean; // off by default
-  };
-  notificationChannels: {
-    whatsapp: boolean; // requires merchant WA Business setup
-    sms: boolean;
-    email: boolean;
-  };
-  defaultMessage_ar: string;
-  defaultMessage_en: string;
-  consentText_ar: string;
-  consentText_en: string;
-  privacyPolicyUrl: string;
-}
-```
-
-### 8.6 Data Captured
-
-```typescript
-interface InterestSignal {
-  id: string;
-  merchant_id: string;
-  customer_phone: string; // hashed in storage, last 4 visible
-  customer_email?: string;
-  customer_salla_id?: string;
-  product_id: string;
-  product_variant_id?: string;
-  interest_type: 'target_price' | 'variant_color' | 'variant_size' | 'follow_product' | 'follow_category' | 'follow_brand';
-  target_value?: {
-    price?: number;
-    color?: string;
-    size?: string;
-    category_id?: string;
-    brand_id?: string;
-  };
-  status: 'active' | 'triggered' | 'cancelled' | 'expired';
-  consent_given_at: timestamp;
-  consent_ip: string;
-  consent_text_version: string;
-  notification_channel: 'whatsapp' | 'sms' | 'email';
-  notification_sent_at?: timestamp;
-  notification_clicked_at?: timestamp;
-  cancelled_at?: timestamp;
-  expires_at: timestamp; // default: 90 days
-  created_at: timestamp;
-}
-```
-
 ### 8.7 Edge Cases
 
 | Edge Case | Behavior |
@@ -895,43 +686,6 @@ interface InterestSignal {
 | Customer hits delete endpoint | Cascade delete all their signals for this merchant |
 | Webhook arrives after customer cancelled | Skip notification |
 | Notification fails (WA blocked) | Fallback to SMS, then email |
-
-### 8.8 Integration with Salla Webhooks
-
-```javascript
-// Pseudo-code for backend webhook handler
-on('product.price.updated', async (event) => {
-  const { product_id, new_price, old_price } = event.data;
-  
-  if (new_price >= old_price) return; // only on price drops
-  
-  const matchingSignals = await db.interestSignals.find({
-    product_id,
-    interest_type: 'target_price',
-    status: 'active',
-    'target_value.price': { $gte: new_price },
-  });
-  
-  for (const signal of matchingSignals) {
-    await notificationQueue.enqueue({
-      signal_id: signal.id,
-      channel: signal.notification_channel,
-      template: 'price_drop',
-      params: { product_id, new_price, old_price },
-    });
-  }
-});
-
-on('product.updated', async (event) => {
-  // Check variant availability changes
-  // Match against variant_color and variant_size signals
-});
-
-on('product.quantity.low', async (event) => {
-  // Note: restock not part of MVP (Salla native handles)
-  // But low quantity could trigger urgency signals later
-});
-```
 
 ### 8.9 Mobile Considerations
 - Phone input: numeric keyboard
@@ -953,13 +707,6 @@ Merchant-facing dashboard that aggregates hesitation submissions and interest si
 ### 9.2 Dashboard Sections
 
 **Section A: Top Stats (Hero)**
-```
-This Week:
-- Hesitation Submissions: 142 (↑18% vs last week)
-- Interest Signals: 87 (↑22%)
-- Active Widgets: 4 / 5
-- Submission Rate: 3.1% ✅
-```
 
 **Section B: Top 3 Hesitation Reasons**
 Bar chart with %, raw count. Filter: This Week / Last 30 Days / All Time.
@@ -967,112 +714,11 @@ Bar chart with %, raw count. Filter: This Week / Last 30 Days / All Time.
 **Section C: Products Needing Attention**
 Table sorted by total intent signals (hesitation + interest). Click row → product detail view.
 
-```
-Product                    Issues  Severity
-─────────────────────────────────────────────
-Vitamin C Serum             15     🔴 High
-Black Maxi Dress             12     🟡 Medium
-Oud Royal 100ml               9     🟡 Medium
-Niacinamide Serum             7     🟢 Low
-```
-
 **Section D: Variant Heatmap**
 Shows most requested variants (colors/sizes) across all products.
 
 **Section E: Doctor Recommendations**
 Card list of active recommendations. Each card has Apply button.
-
-### 9.3 Doctor Rules (5 Rules MVP)
-
-```typescript
-interface DoctorRule {
-  id: string;
-  name: string;
-  condition: (signals: ProductSignals) => boolean;
-  recommendation: {
-    title_ar: string;
-    title_en: string;
-    explanation_ar: string;
-    explanation_en: string;
-    actionType: 'create_snippet' | 'reorder_inventory' | 'create_bundle' | 'add_content';
-    actionPayload: any;
-  };
-  severity: 'low' | 'medium' | 'high';
-}
-
-const MVP_RULES: DoctorRule[] = [
-  {
-    id: 'rule_high_price_complaints',
-    name: 'High Price Complaints',
-    condition: (s) => s.hesitationByReason['price_high'] >= 5,
-    recommendation: {
-      title_ar: 'السعر يبدو مرتفعًا لـ X عميل',
-      title_en: 'Price seems high to X customers',
-      explanation_ar: 'فكر في bundle بدلًا من خصم، أو اعرض ضمان السعر',
-      explanation_en: 'Consider a bundle instead of discount, or offer price guarantee',
-      actionType: 'create_bundle',
-      actionPayload: { product_id: '$product_id', suggested_bundle_value: 0.15 },
-    },
-    severity: 'high',
-  },
-  {
-    id: 'rule_size_confusion',
-    name: 'Size Confusion',
-    condition: (s) => s.hesitationByReason['size_unclear'] >= 5,
-    recommendation: {
-      title_ar: 'X عميل غير متأكد من المقاس',
-      title_en: 'X customers unsure about size',
-      explanation_ar: 'أضف Size Help snippet أو دليل المقاسات',
-      explanation_en: 'Add a Size Help snippet or size chart',
-      actionType: 'create_snippet',
-      actionPayload: { snippet_template: 'size_help' },
-    },
-    severity: 'high',
-  },
-  {
-    id: 'rule_info_missing',
-    name: 'Information Missing',
-    condition: (s) => s.hesitationByReason['need_more_info'] >= 5 || s.clarityByMissing['video'] >= 5,
-    recommendation: {
-      title_ar: 'صفحة المنتج تحتاج معلومات أكثر',
-      title_en: 'Product page needs more info',
-      explanation_ar: 'أضف FAQ أو فيديو شرح',
-      explanation_en: 'Add FAQ or explanation video',
-      actionType: 'add_content',
-      actionPayload: { content_type: 'faq_or_video' },
-    },
-    severity: 'medium',
-  },
-  {
-    id: 'rule_price_demand',
-    name: 'Price Drop Demand',
-    condition: (s) => s.interestByType['target_price'] >= 5,
-    recommendation: {
-      title_ar: 'X عميل ينتظر نزول السعر',
-      title_en: 'X customers waiting for price drop',
-      explanation_ar: 'جرّب bundle بدلًا من خصم لتحويلهم',
-      explanation_en: 'Try a bundle instead of discount to convert them',
-      actionType: 'create_bundle',
-      actionPayload: { audience: 'price_watchers' },
-    },
-    severity: 'medium',
-  },
-  {
-    id: 'rule_variant_demand',
-    name: 'Variant Demand',
-    condition: (s) => s.interestByType['variant_color'] + s.interestByType['variant_size'] >= 5,
-    recommendation: {
-      title_ar: 'X عميل يطلب variant غير متوفر',
-      title_en: 'X customers requesting unavailable variant',
-      explanation_ar: 'فكّر في reorder للمخزون',
-      explanation_en: 'Consider reordering inventory',
-      actionType: 'reorder_inventory',
-      actionPayload: { suggested_quantity: '$signal_count * 2' },
-    },
-    severity: 'high',
-  },
-];
-```
 
 ### 9.4 Recommendations Engine
 
@@ -1102,26 +748,6 @@ const MVP_RULES: DoctorRule[] = [
 **Subject:** "📊 ملخص أسبوع متجرك — 3 توصيات جاهزة"
 
 **Content Template:**
-```
-السلام عليكم [Merchant Name],
-
-هذا ملخص intent signals لمتجرك هذا الأسبوع:
-
-📥 Submissions: 142 (↑18%)
-🔔 Interest Signals: 87 (↑22%)
-
-أهم 3 أسباب التردد:
-1. السعر مرتفع — 54 رد
-2. غير متأكد من المقاس — 32
-3. معلومات ناقصة — 28
-
-🩺 توصيات Doctor جاهزة:
-1. Vitamin C Serum: أضف فيديو شرح
-2. Black Dress L: 30 طلب — reorder priority
-3. Oud Royal 100ml: 18 طلب نزول سعر — جرّب bundle
-
-[افتح Dashboard للتفاصيل →]
-```
 
 ### 9.6 Functional Requirements
 
@@ -1198,54 +824,9 @@ Per-widget performance metrics. Lightweight in MVP — no funnel analysis, no A/
 
 **FR-4.4** Analytics MUST be queryable by date range (7d, 30d, all).
 
-### 10.3 Data Model
-
-```typescript
-interface WidgetEvent {
-  id: string;
-  merchant_id: string;
-  widget_id: string;
-  event_type: 'viewed' | 'interacted' | 'submitted' | 'dismissed';
-  page_url: string;
-  page_type: 'pdp' | 'cart' | 'other';
-  product_id?: string;
-  session_id: string;
-  device_type: 'desktop' | 'mobile' | 'tablet';
-  created_at: timestamp;
-}
-
-// Aggregated views (for performance)
-interface WidgetMetricsDaily {
-  merchant_id: string;
-  widget_id: string;
-  date: date;
-  views: number;
-  interactions: number;
-  submissions: number;
-  dismissals: number;
-}
-```
-
 ### 10.4 UX Requirements
 
 Per-widget card layout:
-```
-┌─────────────────────────────────────┐
-│ 📈 Exit Survey Widget                │
-│                                     │
-│ Views:           4,532               │
-│ Submissions:       142               │
-│ Rate:            3.1% ✅             │
-│                                     │
-│ ▁▂▃▅▇▆▅  Last 7 days                │
-│                                     │
-│ Top pages:                          │
-│  /products/vitamin-c    24          │
-│  /products/black-dress  18          │
-│                                     │
-│ [ View Details ]                    │
-└─────────────────────────────────────┘
-```
 
 ---
 
@@ -1318,51 +899,6 @@ Per-widget card layout:
 ---
 
 ## 12. Technical Architecture
-
-### 12.1 High-Level Diagram
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                  Salla Storefront (Customer)                 │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │ Twilight Theme + Smart Snippet JS (injected via      │   │
-│  │ body:end hook + product/cart hooks)                   │   │
-│  └──────────────────────────────────────────────────────┘   │
-└─────────────────────────┬───────────────────────────────────┘
-                          │ HTTPS (POST events)
-                          ▼
-┌─────────────────────────────────────────────────────────────┐
-│              Smart Snippet Backend (our service)             │
-│  ┌─────────────────┐  ┌─────────────────┐                   │
-│  │  Public API     │  │  Merchant API   │                   │
-│  │  (storefront)   │  │  (dashboard)    │                   │
-│  └────────┬────────┘  └────────┬────────┘                   │
-│           ▼                    ▼                            │
-│  ┌─────────────────────────────────────┐                    │
-│  │       Application Logic              │                    │
-│  │  - Submission processing             │                    │
-│  │  - Doctor rules engine               │                    │
-│  │  - Notification dispatcher           │                    │
-│  └──────────────┬──────────────────────┘                    │
-│                 ▼                                            │
-│  ┌─────────────────────────────────────┐                    │
-│  │       PostgreSQL Database            │                    │
-│  └─────────────────────────────────────┘                    │
-└─────────────────────────────────────────────────────────────┘
-         ▲                          ▲
-         │ Webhooks                 │ API calls
-         │                          │
-┌────────┴──────────────────────────┴─────────────────────────┐
-│                       Salla Platform                         │
-└──────────────────────────────────────────────────────────────┘
-
-         ▲
-         │ HTTPS
-         │
-┌────────┴────────────────────────┐
-│   Merchant Dashboard (Next.js)  │
-└─────────────────────────────────┘
-```
 
 ### 12.2 Tech Stack Recommendation
 
@@ -1468,177 +1004,6 @@ Register App Snippets in Salla Partners Portal:
 
 ## 14. Data Model
 
-### 14.1 Schema Diagrams (PostgreSQL)
-
-```sql
--- Merchants (Salla stores using our app)
-CREATE TABLE merchants (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  salla_store_id VARCHAR(255) UNIQUE NOT NULL,
-  store_name VARCHAR(255),
-  store_url VARCHAR(255),
-  store_locale VARCHAR(10) DEFAULT 'ar',
-  store_currency VARCHAR(10) DEFAULT 'SAR',
-  store_timezone VARCHAR(50) DEFAULT 'Asia/Riyadh',
-  email VARCHAR(255),
-  phone VARCHAR(50),
-  plan VARCHAR(20) DEFAULT 'trial', -- trial / starter / growth / pro
-  trial_ends_at TIMESTAMP,
-  subscription_status VARCHAR(20) DEFAULT 'trial', -- trial / active / past_due / cancelled
-  salla_access_token TEXT, -- encrypted
-  salla_refresh_token TEXT, -- encrypted
-  installed_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  uninstalled_at TIMESTAMP,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-
--- Widgets (one merchant can have multiple widgets)
-CREATE TABLE widgets (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  merchant_id UUID NOT NULL REFERENCES merchants(id) ON DELETE CASCADE,
-  type VARCHAR(50) NOT NULL, -- 'hesitation' / 'interest' / 'clarity'
-  name VARCHAR(255),
-  enabled BOOLEAN DEFAULT TRUE,
-  config JSONB NOT NULL, -- WidgetConfig (see TypeScript types)
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_widgets_merchant ON widgets(merchant_id);
-CREATE INDEX idx_widgets_enabled ON widgets(enabled) WHERE enabled = TRUE;
-
--- Hesitation Submissions
-CREATE TABLE hesitation_submissions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  merchant_id UUID NOT NULL REFERENCES merchants(id) ON DELETE CASCADE,
-  widget_id UUID NOT NULL REFERENCES widgets(id) ON DELETE CASCADE,
-  trigger_mode VARCHAR(50) NOT NULL, -- 'exit_intent' / 'product_clarity'
-  reason_id VARCHAR(100),
-  reason_label_ar VARCHAR(255),
-  reason_label_en VARCHAR(255),
-  free_text TEXT,
-  product_id VARCHAR(255),
-  product_handle VARCHAR(255),
-  product_price DECIMAL(10,2),
-  page_url TEXT,
-  page_type VARCHAR(20),
-  customer_id VARCHAR(255), -- Salla customer ID if logged in
-  session_id VARCHAR(255),
-  device_type VARCHAR(20),
-  user_agent TEXT,
-  referrer TEXT,
-  utm_source VARCHAR(255),
-  utm_medium VARCHAR(255),
-  utm_campaign VARCHAR(255),
-  time_on_page_seconds INT,
-  scroll_depth_percent INT,
-  ip_country VARCHAR(10),
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_hesitation_merchant_created ON hesitation_submissions(merchant_id, created_at DESC);
-CREATE INDEX idx_hesitation_product ON hesitation_submissions(merchant_id, product_id);
-CREATE INDEX idx_hesitation_reason ON hesitation_submissions(merchant_id, reason_id);
-
--- Interest Signals
-CREATE TABLE interest_signals (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  merchant_id UUID NOT NULL REFERENCES merchants(id) ON DELETE CASCADE,
-  customer_phone_hash VARCHAR(255), -- SHA256
-  customer_phone_last4 VARCHAR(4),
-  customer_email VARCHAR(255),
-  customer_salla_id VARCHAR(255),
-  product_id VARCHAR(255) NOT NULL,
-  product_variant_id VARCHAR(255),
-  interest_type VARCHAR(50) NOT NULL, -- 'target_price' / 'variant_color' / etc.
-  target_value JSONB,
-  status VARCHAR(20) DEFAULT 'active', -- 'active' / 'triggered' / 'cancelled' / 'expired'
-  consent_given_at TIMESTAMP NOT NULL,
-  consent_ip VARCHAR(45),
-  consent_text_version VARCHAR(20),
-  notification_channel VARCHAR(20) DEFAULT 'whatsapp',
-  notification_sent_at TIMESTAMP,
-  notification_clicked_at TIMESTAMP,
-  cancelled_at TIMESTAMP,
-  expires_at TIMESTAMP NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  UNIQUE(merchant_id, customer_phone_hash, product_id, interest_type, target_value)
-);
-
-CREATE INDEX idx_interest_merchant ON interest_signals(merchant_id);
-CREATE INDEX idx_interest_product ON interest_signals(merchant_id, product_id);
-CREATE INDEX idx_interest_status ON interest_signals(status) WHERE status = 'active';
-
--- Doctor Recommendations
-CREATE TABLE recommendations (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  merchant_id UUID NOT NULL REFERENCES merchants(id) ON DELETE CASCADE,
-  rule_id VARCHAR(100) NOT NULL,
-  product_id VARCHAR(255),
-  severity VARCHAR(20) NOT NULL, -- 'low' / 'medium' / 'high'
-  title_ar VARCHAR(500),
-  title_en VARCHAR(500),
-  explanation_ar TEXT,
-  explanation_en TEXT,
-  action_type VARCHAR(50),
-  action_payload JSONB,
-  signal_count INT,
-  status VARCHAR(20) DEFAULT 'pending', -- 'pending' / 'applied' / 'dismissed' / 'expired'
-  applied_at TIMESTAMP,
-  dismissed_at TIMESTAMP,
-  expires_at TIMESTAMP NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_recommendations_merchant_status ON recommendations(merchant_id, status);
-CREATE INDEX idx_recommendations_product ON recommendations(merchant_id, product_id);
-
--- Widget Events (analytics)
-CREATE TABLE widget_events (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  merchant_id UUID NOT NULL,
-  widget_id UUID NOT NULL,
-  event_type VARCHAR(50) NOT NULL,
-  page_url TEXT,
-  page_type VARCHAR(20),
-  product_id VARCHAR(255),
-  session_id VARCHAR(255),
-  device_type VARCHAR(20),
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_events_merchant_widget_date ON widget_events(merchant_id, widget_id, created_at DESC);
-
--- Aggregated daily metrics (rebuilt nightly)
-CREATE TABLE widget_metrics_daily (
-  merchant_id UUID NOT NULL,
-  widget_id UUID NOT NULL,
-  date DATE NOT NULL,
-  views INT DEFAULT 0,
-  interactions INT DEFAULT 0,
-  submissions INT DEFAULT 0,
-  dismissals INT DEFAULT 0,
-  PRIMARY KEY (merchant_id, widget_id, date)
-);
-
--- Consent Records (PDPL)
-CREATE TABLE consent_records (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  merchant_id UUID NOT NULL,
-  customer_phone_hash VARCHAR(255),
-  customer_email VARCHAR(255),
-  consent_text TEXT NOT NULL,
-  consent_text_version VARCHAR(20),
-  consent_ip VARCHAR(45),
-  consent_user_agent TEXT,
-  consent_locale VARCHAR(10),
-  given_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  withdrawn_at TIMESTAMP
-);
-```
-
 ### 14.2 Data Retention Policy
 - Hesitation submissions (no PII): retained indefinitely (anonymized after 12 months)
 - Interest signals with consent: until customer withdraws or expires (90 days default)
@@ -1658,90 +1023,14 @@ CREATE TABLE consent_records (
 #### POST /submissions
 Submit a hesitation response.
 
-```http
-POST /v1/public/submissions
-Content-Type: application/json
-X-Merchant-Token: <store-specific public token>
-
-{
-  "widget_id": "uuid",
-  "trigger_mode": "exit_intent",
-  "reason_id": "price_high",
-  "free_text": null,
-  "product": {
-    "id": "12345",
-    "handle": "vitamin-c-serum",
-    "price": 199.00
-  },
-  "page": {
-    "url": "https://store.salla.sa/products/vitamin-c-serum",
-    "type": "pdp"
-  },
-  "session": {
-    "id": "anon-session-uuid",
-    "device_type": "mobile",
-    "time_on_page_seconds": 45,
-    "scroll_depth_percent": 67
-  },
-  "utm": { "source": "instagram", "campaign": "spring2026" },
-  "customer_id": null
-}
-
-→ 200 OK
-{ "submitted": true, "thank_you_message": "شكرًا لمساعدتك" }
-
-→ 429 Too Many Requests (rate limit)
-→ 400 Bad Request (invalid payload)
-```
-
 #### POST /interest
 Register an interest signal (requires consent).
-
-```http
-POST /v1/public/interest
-{
-  "product_id": "12345",
-  "product_variant_id": "67890",
-  "interest_type": "target_price",
-  "target_value": { "price": 150.00 },
-  "phone": "+966501234567",
-  "consent": {
-    "given": true,
-    "text_version": "v1.0-ar",
-    "locale": "ar"
-  },
-  "notification_channel": "whatsapp"
-}
-
-→ 201 Created
-{ "interest_id": "uuid", "status": "active" }
-
-→ 422 Unprocessable Entity (consent missing or invalid phone)
-```
 
 #### POST /events
 Track widget events (impressions, dismissals).
 
-```http
-POST /v1/public/events
-{
-  "widget_id": "uuid",
-  "event_type": "viewed",
-  "page_url": "...",
-  "session_id": "..."
-}
-
-→ 202 Accepted (fire and forget)
-```
-
 #### GET /consent/manage
 Customer-facing consent management page (HTML).
-
-```http
-GET /v1/public/consent/manage?token=<jwt>
-
-→ 200 OK (renders HTML page with: view signals, delete signals, withdraw consent)
-```
 
 ### 15.2 Merchant API (Dashboard — authenticated)
 
@@ -1753,39 +1042,6 @@ Get current merchant profile.
 
 #### GET /dashboard/insights?period=7d
 Returns hero stats, top reasons, products needing attention, variant heatmap.
-
-```http
-GET /v1/merchant/dashboard/insights?period=7d
-
-→ 200 OK
-{
-  "period": "7d",
-  "stats": {
-    "submissions_total": 142,
-    "submissions_delta_percent": 18,
-    "interest_signals_total": 87,
-    "interest_signals_delta_percent": 22,
-    "active_widgets": 4,
-    "total_widgets": 5,
-    "submission_rate": 0.031
-  },
-  "top_reasons": [
-    { "reason_id": "price_high", "label_ar": "السعر مرتفع", "count": 54 },
-    { "reason_id": "size_unclear", "label_ar": "غير متأكد من المقاس", "count": 32 }
-  ],
-  "products_needing_attention": [
-    {
-      "product_id": "12345",
-      "product_name": "Vitamin C Serum",
-      "issue_count": 15,
-      "severity": "high"
-    }
-  ],
-  "variant_heatmap": [
-    { "color": "Black", "size": "L", "requests": 30 }
-  ]
-}
-```
 
 #### GET /widgets
 List all merchant widgets.
@@ -1805,12 +1061,8 @@ List Doctor recommendations.
 #### POST /recommendations/:id/apply
 Mark recommendation as applied + optionally trigger action.
 
-#### POST /recommendations/:id/dismiss
-
 #### GET /submissions?product_id=...&period=30d
 List raw submissions (with filters).
-
-#### GET /interest-signals?status=active
 
 #### POST /billing/subscribe
 Initiate paid plan subscription (links to Salla billing).
@@ -1819,10 +1071,6 @@ Initiate paid plan subscription (links to Salla billing).
 
 **Base URL:** `https://api.smartsnippet.sa/v1/webhooks/salla`
 
-#### POST /webhooks/salla/product-price-updated
-#### POST /webhooks/salla/product-updated
-#### POST /webhooks/salla/customer-created
-#### POST /webhooks/salla/app-installed
 #### POST /webhooks/salla/app-uninstalled
 
 All Salla webhooks verified via HMAC SHA256 signature.
@@ -1874,29 +1122,6 @@ All Salla webhooks verified via HMAC SHA256 signature.
 - Main content: card-based layout
 
 **Dashboard Home:**
-```
-┌─ Top Stats ────────────────────────────────────────┐
-│  [142 ↑18%]  [87 ↑22%]  [4/5 widgets]  [3.1% ✅]  │
-└────────────────────────────────────────────────────┘
-
-┌─ Top 3 Hesitation Reasons ─┐  ┌─ Variant Heatmap ──┐
-│ 1. السعر مرتفع    54 (38%)│  │ Black L      30 ▓▓▓│
-│ 2. غير متأكد المقاس 32   │  │ Red M        22 ▓▓ │
-│ 3. معلومات ناقصة   28   │  │ Beige S      14 ▓  │
-└─────────────────────────────┘  └────────────────────┘
-
-┌─ Products Needing Attention ───────────────────────┐
-│ Product               Issues  Severity   [→]      │
-│ Vitamin C Serum       15      🔴 High            │
-│ Black Maxi Dress      12      🟡 Medium          │
-└────────────────────────────────────────────────────┘
-
-┌─ Doctor Recommendations (3 pending) ───────────────┐
-│ 💊 Vitamin C Serum: 8 customers confused on usage │
-│    → Add video or FAQ                              │
-│    [ Apply ]  [ Dismiss ]                          │
-└────────────────────────────────────────────────────┘
-```
 
 ### 16.4 Component Library
 
@@ -2003,33 +1228,8 @@ After first visit to dashboard with no data:
 **Templates (WhatsApp Business):**
 
 Template 1 — Price Drop:
-```
-مرحبًا 👋
-المنتج اللي تابعته نزل سعره!
-
-[Product Name]
-السعر السابق: 199 ر.س
-السعر الآن: 149 ر.س ✨
-
-اشترِ الآن: [link]
-
-— [Store Name]
-لإلغاء التنبيهات: [manage link]
-```
 
 Template 2 — Variant Available:
-```
-مرحبًا 👋
-الـ [color/size] اللي طلبته رجع!
-
-[Product Name]
-[Variant details]
-
-اشترِ قبل ينفد: [link]
-
-— [Store Name]
-لإلغاء التنبيهات: [manage link]
-```
 
 ---
 
@@ -2316,85 +1516,13 @@ These need to be resolved before/during build:
 | **App Snippet** | Salla's mechanism for injecting JS/HTML into storefronts |
 | **Conditional Webhook** | Salla feature to filter webhooks by rules |
 
-### B. Sample Doctor Rule Configuration (Future Extensibility)
-
-```typescript
-// Rules will be database-driven for easy iteration
-interface DoctorRuleDb {
-  id: string;
-  name: string;
-  enabled: boolean;
-  conditions: ConditionExpression; // composable AND/OR
-  recommendation_template: {
-    title_template_ar: string; // with {count}, {product_name} placeholders
-    title_template_en: string;
-    explanation_ar: string;
-    explanation_en: string;
-    action_type: string;
-    action_payload_template: any;
-  };
-  severity: 'low' | 'medium' | 'high';
-  cooldown_days: number; // don't re-recommend within X days
-  min_signal_count: number; // threshold
-  vertical_filter?: string[]; // only for specific verticals
-}
-```
-
-### C. Hesitation Reason Taxonomy (Default)
-
-```typescript
-const DEFAULT_REASONS = [
-  { id: 'price_high', label_ar: 'السعر مرتفع', label_en: 'Price too high', category: 'price' },
-  { id: 'shipping_unclear', label_ar: 'الشحن غير واضح', label_en: 'Shipping unclear', category: 'shipping' },
-  { id: 'size_unclear', label_ar: 'غير متأكد من المقاس', label_en: 'Unsure about size', category: 'product' },
-  { id: 'comparing', label_ar: 'محتار بين منتجات', label_en: 'Comparing products', category: 'decision' },
-  { id: 'need_more_info', label_ar: 'محتاج معلومات أكثر', label_en: 'Need more info', category: 'product' },
-  { id: 'just_browsing', label_ar: 'فقط أتصفح', label_en: 'Just browsing', category: 'low_intent' },
-  // Vertical-specific (added in v2):
-  { id: 'ingredients_concern', label_ar: 'قلق من المكونات', label_en: 'Concerned about ingredients', category: 'product', verticals: ['beauty'] },
-  { id: 'authenticity', label_ar: 'متشكك في الأصالة', label_en: 'Authenticity concerns', category: 'trust', verticals: ['perfumes', 'fashion'] },
-];
-```
-
 ### D. Sample API Payloads (Detailed)
 
 See section 15 for complete spec. Additional examples:
 
 **Webhook payload from Salla (`product.price.updated`):**
-```json
-{
-  "event": "product.price.updated",
-  "merchant": 12345,
-  "created_at": "2026-05-12T14:30:00Z",
-  "data": {
-    "id": 67890,
-    "name": "Vitamin C Serum",
-    "old_price": 199.00,
-    "new_price": 149.00,
-    "currency": "SAR"
-  }
-}
-```
 
 **Doctor Recommendation creation:**
-```json
-{
-  "rule_id": "rule_size_confusion",
-  "product_id": "67890",
-  "severity": "high",
-  "title_ar": "8 عملاء غير متأكدين من المقاس على Vitamin C Serum",
-  "title_en": "8 customers unsure about size on Vitamin C Serum",
-  "explanation_ar": "أضف Size Help snippet أو دليل المقاسات",
-  "explanation_en": "Add a Size Help snippet or size chart",
-  "action_type": "create_snippet",
-  "action_payload": {
-    "snippet_template": "size_help"
-  },
-  "signal_count": 8,
-  "status": "pending",
-  "expires_at": "2026-05-26T14:30:00Z"
-}
-```
 
 ### E. References
 
@@ -2406,7 +1534,6 @@ See section 15 for complete spec. Additional examples:
 - **PDPL Compliance:** https://sdaia.gov.sa/en/Research/Pages/DataProtection.aspx
 
 ---
-
 
 ## 26. Detailed Specifications — 30 Widgets
 
@@ -2431,30 +1558,12 @@ See section 15 for complete spec. Additional examples:
 
 ### 26.1 Social Proof Widgets
 
-#### 26.1.1 Widget 1 — Live Viewer Counter
-
 ##### Description
 A small floating badge that displays the number of customers currently viewing a product (PDP) or the store (any page) in near-real-time. Builds social validation by signaling product popularity. Uses session heartbeat events from the snippet — does not require external analytics.
 
 **Two display modes (configurable per merchant):**
 - **Mode A: Product-level** — "12 شخص يشاهدون هذا المنتج الآن"
 - **Mode B: Store-level** — "47 شخص يتصفحون المتجر الآن"
-
-##### User Flow
-
-```
-[Customer lands on PDP / store page]
-      ↓
-[Snippet fires viewer_heartbeat every 15s]
-      ↓
-[Backend counts active viewers in last 60s rolling window]
-      ↓
-[Widget renders with smooth count-up animation]
-      ↓
-[Counter updates every 10-30s via SSE or polling]
-      ↓
-[Customer leaves page] → Heartbeat stops → Count decays
-```
 
 ##### Functional Requirements
 
@@ -2515,29 +1624,6 @@ A small floating badge that displays the number of customers currently viewing a
 - **Aggregation:** Backend bucket-counts heartbeats per `product_id` (or store) per minute, computes 60s rolling unique session count.
 - **Display:** Widget polls `/viewers?product_id=X` every 15s or subscribes via SSE.
 
-##### Data Captured
-
-```typescript
-interface ViewerHeartbeat {
-  session_id: string;        // anonymous
-  store_id: string;
-  product_id?: string;       // null for store-level
-  page_type: 'pdp' | 'category' | 'home' | 'cart';
-  user_agent_hash: string;   // for dedup
-  timestamp: timestamp;
-}
-```
-
-**Aggregated table:**
-```typescript
-interface ViewerCount {
-  store_id: string;
-  product_id?: string;
-  active_sessions: number;   // current count
-  last_updated: timestamp;
-}
-```
-
 ##### Edge Cases
 
 | Edge Case | Behavior |
@@ -2570,28 +1656,12 @@ interface ViewerCount {
 
 ---
 
-#### 26.1.2 Widget 2 — Today's Buyers Counter
-
 ##### Description
 A static badge that displays the count of unique buyers (orders placed) for a product or the whole store **today** (Saudi timezone, midnight reset). Pulled from Salla Orders API or webhook stream. Static for the duration of the page view — does not poll.
 
 **Two display modes:**
 - **Mode A: Product-level** — "اشترى 23 شخص هذا المنتج اليوم"
 - **Mode B: Store-level** — "127 طلب اليوم"
-
-##### User Flow
-
-```
-[Customer lands on PDP]
-      ↓
-[Snippet requests /buyers-today?product_id=X]
-      ↓
-[Backend returns cached count (refreshed every 5 min)]
-      ↓
-[Widget renders if count ≥ min_threshold]
-      ↓
-[No polling — static for session]
-```
 
 ##### Functional Requirements
 
@@ -2637,19 +1707,6 @@ A static badge that displays the count of unique buyers (orders placed) for a pr
 | `label_en_template` | string | "{count} bought today" | English template |
 | `include_test_orders` | boolean | false | Include test/sandbox orders |
 
-##### Data Captured
-
-```typescript
-interface BuyersTodayCache {
-  store_id: string;
-  product_id?: string;
-  buyer_count: number;       // unique customers
-  order_count: number;       // total orders
-  date: string;              // YYYY-MM-DD KSA
-  last_updated: timestamp;
-}
-```
-
 ##### Edge Cases
 
 | Edge Case | Behavior |
@@ -2678,30 +1735,10 @@ interface BuyersTodayCache {
 
 ---
 
-#### 26.1.3 Widget 3 — Recent Purchase Toast
-
 ##### Description
 A small notification toast that briefly appears in a corner of the screen, displaying a recent (real or pseudonymized) purchase by another customer. E.g., "أحمد من الرياض اشترى عطر فيراري قبل 5 دقائق". Builds social proof by showing active commerce.
 
 **Privacy-first design:** Only first name + city + product name + relative time. No phone, email, address, or order details exposed.
-
-##### User Flow
-
-```
-[Customer lands on store / PDP / category]
-      ↓
-[After delay_seconds_initial (default 8s)]
-      ↓
-[Backend returns next eligible recent purchase from queue]
-      ↓
-[Toast slides in from bottom-left/right]
-      ↓
-[Visible for visibility_seconds (default 6s)]
-      ↓
-[Slides out + waits gap_seconds (default 25s)]
-      ↓
-[Repeat with next purchase, up to max_per_session (default 5)]
-```
 
 ##### Functional Requirements
 
@@ -2755,33 +1792,6 @@ A small notification toast that briefly appears in a corner of the screen, displ
 | `eligible_pages` | array | [pdp, home, category] | Where to display |
 | `excluded_products` | array | [] | Product IDs to never feature |
 
-##### Data Captured
-
-```typescript
-interface PurchaseToastEvent {
-  store_id: string;
-  toast_id: uuid;
-  session_id: string;
-  shown_purchase_id: string;
-  shown_at: timestamp;
-  dismissed: boolean;
-  dismissed_at?: timestamp;
-  clicked_product: boolean;       // if user clicks toast → PDP
-}
-
-interface ToastEligiblePurchase {
-  purchase_id: string;
-  store_id: string;
-  display_first_name: string;     // computed (real or anonymized)
-  display_city: string;
-  product_id: string;
-  product_name: string;
-  product_thumbnail_url: string;
-  purchase_time: timestamp;
-  shown_count: number;            // limit reuse
-}
-```
-
 ##### Edge Cases
 
 | Edge Case | Behavior |
@@ -2817,28 +1827,10 @@ interface ToastEligiblePurchase {
 
 ### 26.2 Urgency Widgets
 
-#### 26.2.1 Widget 4 — Low Stock Urgency
-
 ##### Description
 A small inline badge displayed on the PDP near the price or Add-to-Cart button that highlights when inventory is running low. Creates purchase urgency through scarcity messaging, but only when it's truthful (real stock count). E.g., "تبقى 3 قطع فقط!" / "Only 3 left!"
 
 **Trigger:** Inventory level falls below a configurable threshold.
-
-##### User Flow
-
-```
-[Customer lands on PDP]
-      ↓
-[Snippet reads current product stock from page or API]
-      ↓
-[If stock ≤ threshold AND stock > 0]
-      ↓
-[Badge renders inline near price/ATC]
-      ↓
-[Optional pulse animation to draw attention]
-      ↓
-[Updates on stock change webhook]
-```
 
 ##### Functional Requirements
 
@@ -2892,20 +1884,6 @@ A small inline badge displayed on the PDP near the price or Add-to-Cart button t
 - **Update:** Subscribe to `product.updated` webhook → invalidate cache → re-render.
 - **Threshold logic:** `0 < stock ≤ low_threshold` → show. Otherwise → hide.
 
-##### Data Captured
-
-```typescript
-interface LowStockImpression {
-  store_id: string;
-  product_id: string;
-  session_id: string;
-  stock_at_display: number;
-  shown_at: timestamp;
-  led_to_atc: boolean;       // user added to cart within session
-  led_to_purchase: boolean;  // user completed checkout
-}
-```
-
 ##### Edge Cases
 
 | Edge Case | Behavior |
@@ -2936,28 +1914,10 @@ interface LowStockImpression {
 
 ---
 
-#### 26.2.2 Widget 11 — Stock Progress Bar
-
 ##### Description
 A horizontal progress bar that visualizes remaining inventory as a percentage. E.g., a bar fills with red as stock depletes — "80% sold!" / "تم بيع 80% — اطلب قبل النفاد". More visual than the text-based Low Stock Urgency widget. Builds urgency through visual depletion.
 
 **Calculation:** `sold_percent = (initial_stock - current_stock) / initial_stock × 100`
-
-##### User Flow
-
-```
-[Customer lands on PDP]
-      ↓
-[Snippet reads initial_stock + current_stock]
-      ↓
-[Calculate sold percentage]
-      ↓
-[If percentage ≥ display_threshold (default 50%)]
-      ↓
-[Progress bar renders with animated fill]
-      ↓
-[Updates on stock change]
-```
 
 ##### Functional Requirements
 
@@ -3006,28 +1966,6 @@ A horizontal progress bar that visualizes remaining inventory as a percentage. E
 | `template_ar` | string | "تم بيع {percent}% — أسرع قبل النفاد!" | Arabic |
 | `template_en` | string | "{percent}% sold — hurry before it's gone!" | English |
 
-##### Data Captured
-
-```typescript
-interface StockProgressConfig {
-  store_id: string;
-  product_id: string;
-  initial_stock: number;        // baseline (merchant or auto)
-  current_stock: number;        // updated via webhook
-  display_threshold: number;
-  last_baseline_reset?: timestamp;
-}
-
-interface StockProgressImpression {
-  store_id: string;
-  product_id: string;
-  session_id: string;
-  sold_percent_at_display: number;
-  shown_at: timestamp;
-  led_to_atc: boolean;
-}
-```
-
 ##### Edge Cases
 
 | Edge Case | Behavior |
@@ -3060,8 +1998,6 @@ interface StockProgressImpression {
 
 ### 26.3 Contact Widgets
 
-#### 26.3.1 Widget 5 — Floating WhatsApp
-
 ##### Description
 A persistent floating action button (FAB) anchored to a corner of every page that opens a WhatsApp chat with the merchant's business number when tapped. Pre-fills a context-aware message (e.g., current product name + URL). The most-requested widget for Saudi e-commerce — WhatsApp is the dominant pre-purchase customer support channel.
 
@@ -3069,22 +2005,6 @@ A persistent floating action button (FAB) anchored to a corner of every page tha
 - On PDP: "مرحباً، عندي سؤال حول [اسم المنتج]: [URL]"
 - On Cart: "مرحباً، عندي سؤال حول طلبي"
 - On other pages: "مرحباً، عندي استفسار"
-
-##### User Flow
-
-```
-[Customer browses any page]
-      ↓
-[FAB visible at bottom corner]
-      ↓
-[Customer taps FAB]
-      ↓
-[Opens wa.me/{phone}?text={pre-filled message}]
-      ↓
-[WhatsApp app/web opens with merchant chat + pre-filled text]
-      ↓
-[Customer can edit and send]
-```
 
 ##### Functional Requirements
 
@@ -3148,22 +2068,6 @@ A persistent floating action button (FAB) anchored to a corner of every page tha
 | `prefilled_message_generic_en` | string | "Hi, I have a question" | EN |
 | `allow_dismiss` | boolean | false | Allow user to hide FAB |
 
-##### Data Captured
-
-```typescript
-interface WhatsAppClick {
-  store_id: string;
-  session_id: string;
-  customer_id?: string;
-  page_type: 'pdp' | 'cart' | 'category' | 'home' | 'other';
-  product_id?: string;
-  is_business_hours: boolean;
-  clicked_at: timestamp;
-  device_type: 'mobile' | 'desktop' | 'tablet';
-  referrer: string;
-}
-```
-
 ##### Edge Cases
 
 | Edge Case | Behavior |
@@ -3198,29 +2102,8 @@ interface WhatsAppClick {
 
 ---
 
-#### 26.3.2 Widget 8 — Quick Contact
-
 ##### Description
 A floating button (or expandable menu) that offers multiple contact methods in one place: WhatsApp, phone call, email, contact form, or store address (Google Maps). Tapping the button opens a small panel listing available contact methods configured by the merchant. Complements (not replaces) the Floating WhatsApp widget when multi-channel contact is desired.
-
-##### User Flow
-
-```
-[Customer browses any page]
-      ↓
-[FAB visible at bottom corner]
-      ↓
-[Customer taps FAB]
-      ↓
-[Panel expands listing contact methods]
-      ↓
-[Customer picks one]
-      ├── WhatsApp → opens chat
-      ├── Phone → tel: link triggers dialer
-      ├── Email → mailto: link
-      ├── Form → opens modal with contact form
-      └── Map → opens Google Maps link
-```
 
 ##### Functional Requirements
 
@@ -3284,34 +2167,6 @@ A floating button (or expandable menu) that offers multiple contact methods in o
 - **Expand:** On tap, panel slides open.
 - **Collapse:** Tap outside, Escape, or after action.
 
-##### Data Captured
-
-```typescript
-interface QuickContactInteraction {
-  store_id: string;
-  session_id: string;
-  customer_id?: string;
-  action: 'expand' | 'collapse' | 'channel_click';
-  channel?: 'whatsapp' | 'phone' | 'email' | 'form' | 'map';
-  page_type: string;
-  product_id?: string;
-  timestamp: timestamp;
-}
-
-interface ContactFormSubmission {
-  store_id: string;
-  customer_name: string;
-  customer_phone: string;
-  customer_email?: string;
-  message: string;
-  page_url: string;
-  product_id?: string;
-  status: 'new' | 'read' | 'responded' | 'archived';
-  pdpl_consent: boolean;
-  submitted_at: timestamp;
-}
-```
-
 ##### Edge Cases
 
 | Edge Case | Behavior |
@@ -3347,24 +2202,8 @@ interface ContactFormSubmission {
 
 ### 26.4 UX Widgets
 
-#### 26.4.1 Widget 6 — Scroll-to-Top
-
 ##### Description
 A small floating button that appears after the customer scrolls down a configurable distance, allowing one-tap return to the top of the page. Improves navigation on long pages (category listings, homepages with multiple sections). Smooth scroll animation by default.
-
-##### User Flow
-
-```
-[Customer scrolls down past threshold (default 400px)]
-      ↓
-[Button fades in at bottom corner]
-      ↓
-[Customer taps button]
-      ↓
-[Page smoothly scrolls to top (window.scrollTo with behavior: smooth)]
-      ↓
-[Button fades out once scroll position < threshold]
-```
 
 ##### Functional Requirements
 
@@ -3405,19 +2244,6 @@ A small floating button that appears after the customer scrolls down a configura
 | `smooth_scroll` | boolean | true | Smooth vs instant |
 | `excluded_pages` | array | [] | Where to hide |
 
-##### Data Captured
-
-```typescript
-interface ScrollToTopClick {
-  store_id: string;
-  session_id: string;
-  page_type: string;
-  scroll_position_at_click: number;
-  page_height: number;
-  clicked_at: timestamp;
-}
-```
-
 ##### Edge Cases
 
 | Edge Case | Behavior |
@@ -3446,33 +2272,10 @@ interface ScrollToTopClick {
 
 ---
 
-#### 26.4.2 Widget 7 — Sticky Add-to-Cart
-
 ##### Description
 A persistent bar fixed at the bottom of the viewport on PDP that displays the product thumbnail, name, price, variant selector, and a prominent "Add to Cart" CTA. Stays visible as the customer scrolls past the original product header. Significantly increases ATC conversion on long-scroll PDPs.
 
 **Activation:** Appears when the customer scrolls past the original product header / ATC button (so original isn't visible anymore).
-
-##### User Flow
-
-```
-[Customer lands on PDP]
-      ↓
-[Sticky bar hidden initially (original ATC visible)]
-      ↓
-[Customer scrolls down past original ATC button]
-      ↓
-[Sticky bar slides up from bottom (300ms)]
-      ↓
-[Bar displays: thumbnail + name + price + variant (if multi) + ATC button]
-      ↓
-[Customer can:
-  ├── Tap ATC → add to cart (Salla)
-  ├── Change variant → reflects new price
-  ├── Tap product info → smooth-scrolls back to top
-  └── Continue scrolling → bar stays
-]
-```
 
 ##### Functional Requirements
 
@@ -3532,22 +2335,6 @@ A persistent bar fixed at the bottom of the viewport on PDP that displays the pr
 - **Observe:** IntersectionObserver on original ATC element. When NOT intersecting → show bar.
 - **Variant change:** Listen to Twilight `variant.changed` event → update price + thumbnail + stock state.
 
-##### Data Captured
-
-```typescript
-interface StickyATCInteraction {
-  store_id: string;
-  session_id: string;
-  customer_id?: string;
-  product_id: string;
-  variant_id?: string;
-  action: 'shown' | 'atc_click' | 'variant_change' | 'name_click';
-  price_at_action: number;
-  in_stock: boolean;
-  timestamp: timestamp;
-}
-```
-
 ##### Edge Cases
 
 | Edge Case | Behavior |
@@ -3587,32 +2374,12 @@ interface StickyATCInteraction {
 
 ### 26.5 Timer Widgets
 
-#### 26.5.1 Widget 9 — Sale Countdown
-
 ##### Description
 A live countdown timer that displays the remaining time until a sale, offer, or campaign ends. Creates time-based urgency. Shows days/hours/minutes/seconds remaining and supports flexible display formats (compact pill, full banner, inline text). Supports per-product and store-wide modes.
 
 **Modes:**
 - **Store-wide:** Global banner showing one campaign timer (e.g., "ينتهي العرض خلال 2د 14س 30د").
 - **Product-specific:** Timer next to price for a specific product on sale.
-
-##### User Flow
-
-```
-[Customer visits store / PDP]
-      ↓
-[Snippet reads active campaign config from backend]
-      ↓
-[If now < campaign_end]
-      ↓
-[Timer renders showing days/hrs/min/sec remaining]
-      ↓
-[Timer updates every second client-side]
-      ↓
-[When countdown reaches 0]
-      ↓
-[Optional: switch to "Sale ended" state OR hide widget]
-```
 
 ##### Functional Requirements
 
@@ -3664,45 +2431,6 @@ A live countdown timer that displays the remaining time until a sale, offer, or 
 | `color_scheme` | enum | warning | warning, brand, neutral |
 | `pages` | array | [home, pdp, category] | Where to show |
 
-##### Campaign Object
-
-```typescript
-interface Campaign {
-  id: uuid;
-  name: string;                         // "White Friday 2026"
-  start_at: timestamp;                  // UTC
-  end_at: timestamp;                    // UTC
-  scope: 'store' | 'category' | 'product';
-  scope_ids?: string[];                 // category/product IDs
-  recurring?: {
-    type: 'daily' | 'weekly';
-    time: string;                       // "18:00"
-    timezone: string;                   // "Asia/Riyadh"
-    duration_hours: number;
-  };
-  message_ar: string;                   // "ينتهي العرض خلال"
-  message_en: string;                   // "Sale ends in"
-  cta_text_ar?: string;
-  cta_link?: string;
-  active: boolean;
-}
-```
-
-##### Data Captured
-
-```typescript
-interface CountdownImpression {
-  store_id: string;
-  session_id: string;
-  campaign_id: string;
-  page_type: string;
-  product_id?: string;
-  time_remaining_seconds_at_view: number;
-  shown_at: timestamp;
-  clicked_cta: boolean;
-}
-```
-
 ##### Edge Cases
 
 | Edge Case | Behavior |
@@ -3736,8 +2464,6 @@ interface CountdownImpression {
 
 ---
 
-#### 26.5.2 Widget 10 — Free Shipping Countdown
-
 ##### Description
 A countdown banner that informs the customer how much more they need to add to their cart to unlock free shipping, combined with a real-time progress bar. Shows in cart and on PDP. E.g., "أضف {remaining} للحصول على شحن مجاني" with a fill bar. Excellent AOV booster.
 
@@ -3745,26 +2471,6 @@ A countdown banner that informs the customer how much more they need to add to t
 - **Cart page:** Banner at top showing current cart subtotal vs threshold.
 - **PDP:** Floating bar showing threshold + cart subtotal (read from Salla cart API).
 - **Sticky bar:** Always-visible across pages until threshold met.
-
-##### User Flow
-
-```
-[Customer adds items to cart]
-      ↓
-[Snippet reads current cart subtotal from Salla]
-      ↓
-[Calculate: remaining = threshold - subtotal]
-      ↓
-[Banner renders with progress bar]
-      ↓
-[On every cart change (Salla event)]
-      ↓
-[Bar updates, label updates]
-      ↓
-[When subtotal ≥ threshold]
-      ↓
-[Banner switches to "Free shipping unlocked! 🎉"]
-```
 
 ##### Functional Requirements
 
@@ -3815,22 +2521,6 @@ A countdown banner that informs the customer how much more they need to add to t
 | `hide_after_unlock_seconds` | int | 0 | Auto-hide after unlock (0 = keep showing) |
 | `region_overrides` | array | [] | { region: 'SA', threshold: 200 } |
 
-##### Data Captured
-
-```typescript
-interface FreeShippingImpression {
-  store_id: string;
-  session_id: string;
-  customer_id?: string;
-  page_type: string;
-  cart_subtotal_at_view: number;
-  threshold: number;
-  remaining: number;
-  state: 'progress' | 'unlocked';
-  shown_at: timestamp;
-}
-```
-
 ##### Edge Cases
 
 | Edge Case | Behavior |
@@ -3869,34 +2559,10 @@ interface FreeShippingImpression {
 
 > **SHARED CONTEXT:** All seasonal widgets share a common framework — they activate within a date range, override theme accent colors with seasonal palette, optionally inject themed badges/overlays on PDPs, and surface promo banners. Each widget below specifies its unique behavior, dates, palette, and content. Common implementation lives in a single `SeasonalEngine` core; widgets are configuration variants.
 
-#### 26.6.1 Widget 12 — Ramadan Mode
-
 ##### Description
 A bundle of seasonal customizations that activates during the Hijri month of Ramadan: themed banner with crescent/lantern motifs, prayer-time-aware promo timing (avoid showing aggressive offers during Iftar/Suhoor), Ramadan greeting modal on first visit, Iftar countdown timer (optional), and curated Ramadan products collection promotion.
 
 **Date logic:** Auto-detects Hijri Ramadan dates (1 - 30 Ramadan) using a Hijri calendar library OR allows merchant to manually set start/end Gregorian dates.
-
-##### User Flow
-
-```
-[Date enters Ramadan window]
-      ↓
-[On first visit during Ramadan]
-      ↓
-[Optional: Ramadan greeting modal "كل عام وأنتم بخير"]
-      ↓
-[Theme override applies: banner, accent color]
-      ↓
-[Iftar countdown timer shows during fasting hours]
-      ↓
-[Ramadan collection link in nav/banner]
-      ↓
-[On Iftar time]
-      ↓
-[Banner switches to "إفطار شهي" message for 30 min]
-      ↓
-[Aggressive popups paused during 30-min Iftar window]
-```
 
 ##### Functional Requirements
 
@@ -3956,21 +2622,6 @@ A bundle of seasonal customizations that activates during the Hijri month of Ram
 | `palette_accent` | string | "#FAF5EC" | Cream |
 | `logo_overlay_url` | string | (optional) | Custom Ramadan logo |
 
-##### Data Captured
-
-```typescript
-interface SeasonalImpression {
-  store_id: string;
-  widget: 'ramadan' | 'national_day' | 'white_friday' | 'eid' | 'back_to_school';
-  session_id: string;
-  customer_id?: string;
-  shown_at: timestamp;
-  greeting_shown: boolean;
-  greeting_dismissed: boolean;
-  cta_clicked: boolean;
-}
-```
-
 ##### Edge Cases
 
 | Edge Case | Behavior |
@@ -4003,24 +2654,8 @@ interface SeasonalImpression {
 
 ---
 
-#### 26.6.2 Widget 13 — National Day
-
 ##### Description
 A bundle of Saudi National Day customizations (annually September 23): themed banner with Saudi green/white palette, "كل عام والوطن بخير" greeting, optional NDP-themed product collection promotion, and patriotic visual elements (flag motifs, palm-and-swords). Activates Sept 20-26 by default (3 days before, 3 days after).
-
-##### User Flow
-
-```
-[Date enters National Day window (Sept 20-26 default)]
-      ↓
-[Theme overlay applies: Saudi green banner + flag motifs]
-      ↓
-[On Sept 23 only: special "happy national day" greeting modal]
-      ↓
-[Saudi National Day collection link surfaced]
-      ↓
-[On Sept 27: auto-deactivate]
-```
 
 ##### Functional Requirements
 
@@ -4090,32 +2725,10 @@ Same structure as `SeasonalImpression` with `widget: 'national_day'`.
 
 ---
 
-#### 26.6.3 Widget 14 — White Friday
-
 ##### Description
 A high-stakes seasonal widget for "Black Friday" (rebranded "White Friday" in Saudi/Gulf markets). Activates during the last week of November (configurable), displays dramatic banners, integrates with Sale Countdown (Widget 9), and surfaces a curated discount collection. Designed for high-intensity, time-pressured sale weekends.
 
 **Note:** Often called "White Friday" in Saudi Arabia (الجمعة البيضاء) to avoid negative connotation of "black". The widget supports both labels.
-
-##### User Flow
-
-```
-[Date enters White Friday window]
-      ↓
-[Top banner overrides default theme with dramatic black/white/gold]
-      ↓
-[Sale Countdown integration: timer counts down to weekend end]
-      ↓
-[On weekend (Friday 00:00 to Sunday 23:59 KSA)]
-      ↓
-[Banner switches to "Sale is LIVE" state with stronger visual]
-      ↓
-[White Friday collection link surfaced]
-      ↓
-[On Sunday 23:59]
-      ↓
-[Switch to "Sale ended" or auto-deactivate]
-```
 
 ##### Functional Requirements
 
@@ -4193,32 +2806,12 @@ Same structure as `SeasonalImpression` with `widget: 'white_friday'`.
 
 ---
 
-#### 26.6.4 Widget 15 — Eid Widget
-
 ##### Description
 A bundle that activates during Eid al-Fitr and Eid al-Adha. Themed banner with celebratory gold/blue palette, "عيد مبارك" greeting modal (once per Eid), optional Eid gift collection link, and increased trust messaging (delivery dates, gift-wrap availability). Two yearly activations.
 
 **Auto-detection:** Uses Hijri calendar.
 - Eid al-Fitr: 1-3 Shawwal (3 days)
 - Eid al-Adha: 10-13 Dhu al-Hijjah (4 days)
-
-##### User Flow
-
-```
-[Date enters Eid window]
-      ↓
-[Theme overlay: gold + soft blue + cream]
-      ↓
-[On first visit during Eid period: "Eid Mubarak" greeting modal]
-      ↓
-[Eid Collection link surfaced]
-      ↓
-[Gift-related messaging on PDP (gift-wrap, delivery before Eid)]
-      ↓
-[Last day of Eid: switch to soft "happy holidays" tone]
-      ↓
-[Auto-deactivate on day after]
-```
 
 ##### Functional Requirements
 
@@ -4293,24 +2886,8 @@ Same structure as `SeasonalImpression` with `widget: 'eid'` and `eid_type: 'fitr
 
 ---
 
-#### 26.6.5 Widget 16 — Back to School
-
 ##### Description
 A seasonal widget activated during the Back to School period (early August through mid-September for Saudi school year start). Themed banner with school supplies imagery, family-friendly palette, and a curated Back-to-School product collection promotion.
-
-##### User Flow
-
-```
-[Date enters Back to School window (Aug 1 - Sept 15 default)]
-      ↓
-[Top banner overlay: school motifs + parent-friendly tone]
-      ↓
-[Back to School Collection link surfaced]
-      ↓
-[Family/kids categories highlighted]
-      ↓
-[On Sept 16: auto-deactivate]
-```
 
 ##### Functional Requirements
 
@@ -4379,30 +2956,8 @@ Same structure as `SeasonalImpression` with `widget: 'back_to_school'`.
 
 > **SHARED CONTEXT:** All popup widgets share a common popup engine with: trigger logic, frequency capping, dismissal persistence, A/B variant support, A11y focus trapping, mobile bottom-sheet vs desktop centered modal. Each popup spec below details its trigger conditions, content, and unique behavior.
 
-#### 26.7.1 Widget 17 — Welcome Popup
-
 ##### Description
 A first-impression modal that greets new visitors with a welcome message, often paired with an introductory offer (discount code, newsletter signup incentive, or free shipping promo). Fires once per user, with configurable delay and dismissal persistence.
-
-##### User Flow
-
-```
-[New visitor lands on store]
-      ↓
-[After delay_seconds (default 5s) on first page]
-      ↓
-[Modal slides in / fades in centered]
-      ↓
-[Content: welcome image + headline + offer + CTA]
-      ↓
-[Customer can:
-  ├── Tap CTA (claim offer / continue) → log conversion
-  ├── Tap X / outside → dismiss
-  └── Tap "remind later" → snooze 1 day
-]
-      ↓
-[Modal closes, never shown again unless config = recurring]
-```
 
 ##### Functional Requirements
 
@@ -4458,23 +3013,6 @@ A first-impression modal that greets new visitors with a welcome message, often 
 | `recurring` | boolean | false | Re-show after dismiss period |
 | `frequency_cap_per_session` | int | 1 | Max shows per session |
 
-##### Data Captured
-
-```typescript
-interface PopupEvent {
-  store_id: string;
-  popup_widget: 'welcome' | 'exit_intent' | 'newsletter' | 'cart_abandonment' | 'age_verification';
-  popup_variant?: string;        // for A/B
-  session_id: string;
-  customer_id?: string;
-  action: 'shown' | 'dismissed' | 'cta_clicked' | 'snoozed' | 'submitted';
-  page_url: string;
-  trigger_reason: string;
-  metadata?: object;             // popup-specific (e.g., code claimed, email entered)
-  timestamp: timestamp;
-}
-```
-
 ##### Edge Cases
 
 | Edge Case | Behavior |
@@ -4508,30 +3046,10 @@ interface PopupEvent {
 
 ---
 
-#### 26.7.2 Widget 18 — Exit Intent Popup
-
 ##### Description
 A high-conversion popup that fires when a customer signals intent to leave the page (mouse leaves toward browser chrome on desktop; aggressive scroll-up + idle on mobile). Designed to recapture abandoning visitors with a "wait, here's an offer" message. Distinct from the Hesitation Capture Widget (Feature 1) — this widget makes a sales offer; Hesitation Capture asks "why".
 
 **Mutually exclusive with Hesitation Capture on the same page** — only one triggers per session.
-
-##### User Flow
-
-```
-[Customer browsing, signals exit intent]
-      ├── Desktop: mouseleave toward top of viewport
-      └── Mobile: rapid scroll up + idle 3s
-      ↓
-[Popup fires (if not within quiet period)]
-      ↓
-[Content: "Wait!" + offer / value prop + CTA]
-      ↓
-[Customer:
-  ├── Claims offer → log conversion, close popup
-  ├── Dismisses → close, fire once per session max
-  └── Continues exit → popup closes
-]
-```
 
 ##### Functional Requirements
 
@@ -4584,22 +3102,6 @@ A high-conversion popup that fires when a customer signals intent to leave the p
 | `variants` | array | [] | A/B variants |
 | `frequency_cap_per_session` | int | 1 | Once per session |
 
-##### Trigger Logic
-
-```javascript
-// Desktop
-document.addEventListener('mouseleave', (e) => {
-  if (e.clientY < 0 && timeOnPage > minDwell && !sessionDismissed) trigger();
-});
-
-// Mobile fallback
-let scrollHistory = [];
-window.addEventListener('scroll', () => {
-  scrollHistory.push({ y: window.scrollY, t: Date.now() });
-  // detect rapid upward scroll → idle 3s → trigger
-});
-```
-
 ##### Data Captured
 Same structure as `PopupEvent` with `popup_widget: 'exit_intent'`.
 
@@ -4631,28 +3133,8 @@ Same structure as `PopupEvent` with `popup_widget: 'exit_intent'`.
 
 ---
 
-#### 26.7.3 Widget 19 — Newsletter Signup
-
 ##### Description
 A popup that invites customers to subscribe to the merchant's newsletter, often in exchange for a discount or content (early access, lookbook, etc.). Captures email and optionally phone (for WhatsApp/SMS). Integrates with Salla customer database or external ESP.
-
-##### User Flow
-
-```
-[Customer browses for > delay_seconds OR triggered by exit/scroll]
-      ↓
-[Popup shows with newsletter benefit + form]
-      ↓
-[Customer enters email (+ optional phone)]
-      ↓
-[Submits → backend validates + stores]
-      ↓
-[Success state: "Subscribed! Check your email for the code"]
-      ↓
-[PDPL consent confirmed]
-      ↓
-[Popup closes after 3s]
-```
 
 ##### Functional Requirements
 
@@ -4712,25 +3194,6 @@ A popup that invites customers to subscribe to the merchant's newsletter, often 
 | `esp_list_id` | string | (optional) | External list ID |
 | `discount_code_on_signup` | string | (optional) | Code emailed after signup |
 
-##### Data Captured
-
-```typescript
-interface NewsletterSignup {
-  store_id: string;
-  subscriber_id: uuid;
-  email: string;
-  phone?: string;
-  consent_pdpl: boolean;
-  consent_timestamp: timestamp;
-  consent_version: string;
-  source: 'newsletter_popup' | 'inline_form' | 'checkout';
-  page_url_at_signup: string;
-  esp_provider: string;
-  esp_external_id?: string;
-  created_at: timestamp;
-}
-```
-
 ##### Edge Cases
 
 | Edge Case | Behavior |
@@ -4764,30 +3227,10 @@ interface NewsletterSignup {
 
 ---
 
-#### 26.7.4 Widget 20 — Cart Abandonment
-
 ##### Description
 A popup that fires when a customer with items in cart shows exit intent, idle behavior, or attempts to navigate away from the cart page. Reminds them of their items and offers an incentive to complete the purchase. Distinct from Salla's native abandoned cart emails (which fire post-session). This widget fires in-session.
 
 **Note:** Salla has native abandoned cart features. This widget is in-session only; we do NOT replace post-session emails.
-
-##### User Flow
-
-```
-[Customer has items in cart]
-      ↓
-[Exit intent OR cart-page idle 60s OR ATC then no checkout 2min]
-      ↓
-[Popup fires: "Don't lose your items!"]
-      ↓
-[Content: cart preview + offer + CTA "Complete Order"]
-      ↓
-[Customer:
-  ├── Clicks CTA → /checkout
-  ├── Dismisses → close, mark session-shown
-  └── Continues exit → close anyway
-]
-```
 
 ##### Functional Requirements
 
@@ -4842,25 +3285,6 @@ A popup that fires when a customer with items in cart shows exit intent, idle be
 | `cta_url` | string | "/checkout" | Redirect |
 | `disable_if_salla_abandonment_active` | boolean | false | Coordinate with native |
 
-##### Data Captured
-
-```typescript
-interface CartAbandonPopup {
-  store_id: string;
-  popup_event_id: uuid;
-  session_id: string;
-  customer_id?: string;
-  cart_id?: string;
-  cart_subtotal: number;
-  cart_item_count: number;
-  trigger_reason: 'exit_intent' | 'cart_idle' | 'post_atc';
-  action: 'shown' | 'dismissed' | 'cta_clicked';
-  led_to_checkout: boolean;
-  led_to_purchase: boolean;
-  timestamp: timestamp;
-}
-```
-
 ##### Edge Cases
 
 | Edge Case | Behavior |
@@ -4891,26 +3315,8 @@ interface CartAbandonPopup {
 
 ---
 
-#### 26.7.5 Widget 21 — Age Verification
-
 ##### Description
 A blocking modal that prompts the customer to confirm their age before browsing the store, required for age-restricted product categories (vape, perfume with alcohol content, certain cosmetics, etc.). Stores confirmation in cookie/localStorage. Mandatory disclaimer pattern in some Saudi categories.
-
-##### User Flow
-
-```
-[Customer lands on store (first visit OR cookie expired)]
-      ↓
-[Full-screen modal blocks all content]
-      ↓
-[Question: "Are you over 18?"]
-      ↓
-[Customer:
-  ├── Confirms Yes → cookie set, modal dismisses, store visible
-  ├── Selects No → redirect to "minors-not-allowed" page OR generic site
-  └── Cannot dismiss without choosing
-]
-```
 
 ##### Functional Requirements
 
@@ -4959,20 +3365,6 @@ A blocking modal that prompts the customer to confirm their age before browsing 
 | `show_logo` | boolean | true | Display store logo |
 | `pages_excluded` | array | [] | Pages to skip (rare) |
 
-##### Data Captured
-
-```typescript
-interface AgeVerification {
-  store_id: string;
-  session_id: string;
-  customer_id?: string;
-  response: 'yes' | 'no';
-  ip_address_hash: string;        // for compliance audit, hashed
-  user_agent: string;
-  timestamp: timestamp;
-}
-```
-
 ##### Edge Cases
 
 | Edge Case | Behavior |
@@ -5009,24 +3401,8 @@ interface AgeVerification {
 
 > **SHARED CONTEXT:** Trust widgets are passive informational displays designed to reduce friction at decision points (PDP, cart, checkout). They share a common rendering engine that places badge groups in configurable positions and reads from a shared `trust_config` per merchant. No customer interaction tracking beyond impression events.
 
-#### 26.8.1 Widget 22 — Trust Badges
-
 ##### Description
 A row of badges/icons displayed on PDPs and the cart page that visually communicate trust signals: secure checkout, money-back guarantee, customer support availability, authentic products, etc. Configurable per merchant from a curated icon library + custom upload.
-
-##### User Flow
-
-```
-[Customer browses PDP or cart]
-      ↓
-[Badge row renders at configured position (default: below ATC)]
-      ↓
-[Each badge shows icon + short label]
-      ↓
-[On hover (desktop) → tooltip with longer description]
-      ↓
-[Static display, no interaction required]
-```
 
 ##### Functional Requirements
 
@@ -5069,19 +3445,6 @@ A row of badges/icons displayed on PDPs and the cart page that visually communic
 
 ##### Badge Object
 
-```typescript
-interface TrustBadge {
-  id: uuid;
-  icon: string;              // library key OR uploaded URL
-  label_ar: string;
-  label_en: string;
-  tooltip_ar?: string;
-  tooltip_en?: string;
-  pages: ('pdp' | 'cart')[];
-  order: number;
-}
-```
-
 **Pre-built badge library:**
 - Secure Checkout / دفع آمن
 - Money-Back Guarantee / ضمان الاسترداد
@@ -5094,19 +3457,6 @@ interface TrustBadge {
 - SSL Encrypted / تشفير SSL
 - Quality Assured / جودة مضمونة
 - (+10 more in MVP)
-
-##### Data Captured
-
-```typescript
-interface TrustBadgeImpression {
-  store_id: string;
-  session_id: string;
-  page_type: string;
-  product_id?: string;
-  badge_ids_shown: string[];
-  shown_at: timestamp;
-}
-```
 
 ##### Edge Cases
 
@@ -5137,20 +3487,8 @@ interface TrustBadgeImpression {
 
 ---
 
-#### 26.8.2 Widget 23 — Payment Methods
-
 ##### Description
 A visual row of payment method logos (Mada, Visa, Mastercard, Apple Pay, STC Pay, Tabby, Tamara, etc.) displayed on PDP, cart, and footer. Communicates accepted payment options and increases checkout confidence. Pulled from Salla store configuration (which payment methods the merchant has enabled).
-
-##### User Flow
-
-```
-[Customer browses PDP / cart / footer]
-      ↓
-[Row of payment logos renders]
-      ↓
-[Static display, informational only]
-```
 
 ##### Functional Requirements
 
@@ -5191,18 +3529,6 @@ A visual row of payment method logos (Mada, Visa, Mastercard, Apple Pay, STC Pay
 | `logo_height_px` | int | 32 | Logo height |
 | `show_bnpl_labels` | boolean | true | Tabby/Tamara installment label |
 
-##### Data Captured
-
-```typescript
-interface PaymentMethodsImpression {
-  store_id: string;
-  session_id: string;
-  page_type: string;
-  methods_shown: string[];   // ['mada', 'visa', 'apple_pay', 'tabby', ...]
-  shown_at: timestamp;
-}
-```
-
 ##### Edge Cases
 
 | Edge Case | Behavior |
@@ -5231,26 +3557,8 @@ interface PaymentMethodsImpression {
 
 ---
 
-#### 26.8.3 Widget 24 — Shipping Info
-
 ##### Description
 A compact info card displayed on PDP and cart that summarizes shipping options: estimated delivery time, shipping cost (or "free above X"), and supported regions. Reduces purchase hesitation by answering "when will I get this?" upfront.
-
-##### User Flow
-
-```
-[Customer browses PDP]
-      ↓
-[Shipping card renders near price/ATC]
-      ↓
-[Card displays:
-  - Estimated delivery: "2-4 days to Riyadh"
-  - Cost: "Free above 200 SAR" OR "15 SAR flat"
-  - Regions: "Ships to all of KSA"
-]
-      ↓
-[Customer can tap "Details" to expand → list of cities with delivery times]
-```
 
 ##### Functional Requirements
 
@@ -5293,20 +3601,6 @@ A compact info card displayed on PDP and cart that summarizes shipping options: 
 | `auto_detect_city` | boolean | true | Use IP geo or customer profile |
 | `excluded_cities` | array | [] | Cities not shipped to |
 
-##### Data Captured
-
-```typescript
-interface ShippingInfoView {
-  store_id: string;
-  session_id: string;
-  page_type: string;
-  customer_city_detected: string;
-  delivery_estimate_shown: string;
-  expanded_clicked: boolean;
-  shown_at: timestamp;
-}
-```
-
 ##### Edge Cases
 
 | Edge Case | Behavior |
@@ -5336,22 +3630,8 @@ interface ShippingInfoView {
 
 ---
 
-#### 26.8.4 Widget 25 — Return Policy
-
 ##### Description
 A compact card on PDP, cart, and footer that surfaces the merchant's return policy in a digestible format. Builds confidence at the point of decision. Links to the full policy page for full text. Typical content: "30-day returns, free pickup, full refund".
-
-##### User Flow
-
-```
-[Customer browses PDP / cart / footer]
-      ↓
-[Card renders with key policy summary]
-      ↓
-[Card content: icon + headline + 1-2 bullets]
-      ↓
-[Customer can tap "Full Policy" → opens policy page]
-```
 
 ##### Functional Requirements
 
@@ -5390,20 +3670,6 @@ A compact card on PDP, cart, and footer that surfaces the merchant's return poli
 | `non_returnable_text_en` | string | "This product is non-returnable" | EN |
 | `show_icon` | boolean | true | Display icon |
 
-##### Data Captured
-
-```typescript
-interface ReturnPolicyView {
-  store_id: string;
-  session_id: string;
-  page_type: string;
-  product_id?: string;
-  policy_link_clicked: boolean;
-  product_non_returnable: boolean;
-  shown_at: timestamp;
-}
-```
-
 ##### Edge Cases
 
 | Edge Case | Behavior |
@@ -5430,30 +3696,10 @@ interface ReturnPolicyView {
 
 ### 26.9 Engagement Widgets
 
-#### 26.9.1 Widget 26 — Wishlist Heart
-
 ##### Description
 A heart-shaped icon on product cards and PDPs that customers can tap to save a product to a personal wishlist. Persists across sessions (for logged-in customers) or per-device (for anonymous users via localStorage). Wishlist accessible from a dedicated page or dropdown.
 
 **Note:** Salla has a native wishlist. Our widget enhances UX with: optimistic toggling, mini-counter badge, "Move to cart" bulk action, and analytics.
-
-##### User Flow
-
-```
-[Customer browses product card or PDP]
-      ↓
-[Heart icon visible (empty if not in wishlist)]
-      ↓
-[Customer taps heart]
-      ↓
-[Optimistic toggle: heart fills + count badge increments]
-      ↓
-[Backend stores wishlist item (Salla API + our DB)]
-      ↓
-[On wishlist page: customer sees all saved items]
-      ↓
-[Customer can remove, share, or move to cart]
-```
 
 ##### Functional Requirements
 
@@ -5507,31 +3753,6 @@ A heart-shaped icon on product cards and PDPs that customers can tap to save a p
 | `heart_color_active` | string | "#DC2626" | Filled color |
 | `heart_color_inactive` | string | "#9CA3AF" | Empty color |
 
-##### Data Captured
-
-```typescript
-interface WishlistItem {
-  id: uuid;
-  store_id: string;
-  customer_id?: string;       // null for anonymous
-  session_id?: string;        // for anon merging
-  product_id: string;
-  variant_id?: string;
-  added_at: timestamp;
-  source_page: string;        // pdp, category, search
-  removed_at?: timestamp;
-}
-
-interface WishlistEvent {
-  store_id: string;
-  event: 'added' | 'removed' | 'viewed_page' | 'moved_to_cart' | 'shared';
-  customer_id?: string;
-  session_id?: string;
-  product_id?: string;
-  timestamp: timestamp;
-}
-```
-
 ##### Edge Cases
 
 | Edge Case | Behavior |
@@ -5565,26 +3786,10 @@ interface WishlistEvent {
 
 ---
 
-#### 26.9.2 Widget 27 — Recently Viewed
-
 ##### Description
 A horizontal carousel of products the customer has recently viewed (last 10-20 items). Helps customers re-find products they liked, increasing return-visit conversion. Displays on homepage, PDP (when scrolled past main content), and a dedicated section in the customer account area.
 
 **Note:** Salla theme M48 has a similar feature; this widget is more polished and provides analytics.
-
-##### User Flow
-
-```
-[Customer views PDPs over time]
-      ↓
-[Each PDP view stored in localStorage (anonymous) or backend (logged in)]
-      ↓
-[On homepage / PDP / account]
-      ↓
-[Carousel renders showing last X recently viewed]
-      ↓
-[Customer scrolls horizontally + taps to revisit]
-```
 
 ##### Functional Requirements
 
@@ -5632,29 +3837,6 @@ A horizontal carousel of products the customer has recently viewed (last 10-20 i
 | `section_title_en` | string | "Recently Viewed" | EN |
 | `clear_history_button` | boolean | true | Show clear button |
 
-##### Data Captured
-
-```typescript
-interface RecentlyViewedHistory {
-  id: uuid;
-  store_id: string;
-  customer_id?: string;
-  session_id?: string;
-  product_ids: string[];      // ordered, most recent first
-  last_updated: timestamp;
-}
-
-interface RecentlyViewedEvent {
-  store_id: string;
-  customer_id?: string;
-  session_id?: string;
-  event: 'viewed' | 'reclicked' | 'cleared';
-  product_id?: string;
-  source_page: string;        // home, pdp, account
-  timestamp: timestamp;
-}
-```
-
 ##### Edge Cases
 
 | Edge Case | Behavior |
@@ -5686,26 +3868,10 @@ interface RecentlyViewedEvent {
 
 ---
 
-#### 26.9.3 Widget 28 — Also Bought
-
 ##### Description
 A horizontal carousel on PDP titled "Customers also bought" or "Frequently bought together" that displays products commonly purchased alongside the current product. Drives cross-sell. Algorithm uses co-purchase history from Salla orders.
 
 **MVP algorithm:** Simple co-occurrence: products that appeared in the same orders as the current product, ordered by frequency.
-
-##### User Flow
-
-```
-[Customer views PDP]
-      ↓
-[Backend returns top-N co-purchased products]
-      ↓
-[Carousel renders below main content]
-      ↓
-[Customer taps a recommended product → navigates to its PDP]
-      ↓
-[Cross-sell impression logged]
-```
 
 ##### Functional Requirements
 
@@ -5753,39 +3919,6 @@ A horizontal carousel on PDP titled "Customers also bought" or "Frequently bough
 | `excluded_products` | array | [] | Never recommend |
 | `algorithm_min_co_occurrence` | int | 3 | Min co-purchases to qualify |
 
-##### Algorithm (MVP)
-
-```
-1. Query Salla orders (last 180 days)
-2. For each order, generate all pairs of products
-3. Count co-occurrence per pair
-4. For each product, rank companions by co-occurrence count desc
-5. Cache results per product (TTL 24h)
-6. On PDP load → fetch from cache
-```
-
-##### Data Captured
-
-```typescript
-interface AlsoBoughtRecommendation {
-  store_id: string;
-  source_product_id: string;
-  recommended_product_id: string;
-  co_occurrence_count: number;
-  computed_at: timestamp;
-}
-
-interface AlsoBoughtEvent {
-  store_id: string;
-  session_id: string;
-  source_product_id: string;
-  recommendation_ids_shown: string[];
-  action: 'shown' | 'clicked' | 'atc' | 'bundle_add';
-  clicked_product_id?: string;
-  timestamp: timestamp;
-}
-```
-
 ##### Edge Cases
 
 | Edge Case | Behavior |
@@ -5818,32 +3951,8 @@ interface AlsoBoughtEvent {
 
 ---
 
-#### 26.9.4 Widget 29 — Comparison Button
-
 ##### Description
 A "Compare" button on product cards and PDPs that adds the product to a comparison tray. Customer can compare up to 4 products side-by-side in a dedicated comparison view, showing attributes like price, specifications, ratings, and availability. Decision-support widget for considered purchases.
-
-##### User Flow
-
-```
-[Customer browses product cards or PDPs]
-      ↓
-[Compare button on each card/PDP]
-      ↓
-[Customer taps "Compare" on Product A]
-      ↓
-[Floating tray appears at bottom showing 1 product]
-      ↓
-[Customer taps "Compare" on Product B, C, D]
-      ↓
-[Tray shows 4 products, button "Compare All" enabled]
-      ↓
-[Customer taps "Compare All"]
-      ↓
-[Comparison view opens: side-by-side table]
-      ↓
-[Customer can remove products, ATC, or close]
-```
 
 ##### Functional Requirements
 
@@ -5893,28 +4002,6 @@ A "Compare" button on product cards and PDPs that adds the product to a comparis
 | `clear_button` | boolean | true | "Clear all" in tray |
 | `share_comparison_link` | boolean | false | Generate shareable URL (Phase 2) |
 
-##### Data Captured
-
-```typescript
-interface ComparisonSession {
-  store_id: string;
-  session_id: string;
-  customer_id?: string;
-  product_ids: string[];
-  added_at: timestamp;
-  comparison_view_opened: boolean;
-  led_to_purchase: boolean;
-}
-
-interface ComparisonEvent {
-  store_id: string;
-  session_id: string;
-  event: 'product_added' | 'product_removed' | 'view_opened' | 'atc_from_compare' | 'cleared';
-  product_id?: string;
-  timestamp: timestamp;
-}
-```
-
 ##### Edge Cases
 
 | Edge Case | Behavior |
@@ -5949,8 +4036,6 @@ interface ComparisonEvent {
 
 ### 26.10 Tool Widget
 
-#### 26.10.1 Widget 30 — Widget Customizer
-
 ##### Description
 The most complex item in the MVP — a merchant-facing visual editor that lets merchants configure, preview, and deploy any of the 29 customer-facing widgets with a no-code interface. Built into the merchant dashboard. Replaces JSON config editing with a polished UI featuring forms, color pickers, live preview, and one-click publish.
 
@@ -5967,33 +4052,6 @@ The most complex item in the MVP — a merchant-facing visual editor that lets m
 8. Versioning + rollback
 9. Publishing workflow (draft → preview → publish)
 10. Performance estimation (loading impact)
-
-##### User Flow
-
-```
-[Merchant logs into dashboard]
-      ↓
-[Navigates to "Widgets" section]
-      ↓
-[Widget gallery shows all 29 widgets organized by category]
-      ↓
-[Merchant clicks "Configure" on Live Viewer Counter]
-      ↓
-[Customizer opens:
-  Left panel: configuration form (sections for triggers, content, design, etc.)
-  Right panel: live preview iframe of storefront with widget rendered
-]
-      ↓
-[Merchant edits values; preview updates real-time]
-      ↓
-[Merchant clicks "Preview on Live Store" → opens new tab with debug param]
-      ↓
-[Merchant clicks "Publish" → confirmation modal]
-      ↓
-[Widget goes live (or scheduled for future activation)]
-      ↓
-[Versioning: prior config retained; rollback button available]
-```
 
 ##### Functional Requirements
 
@@ -6128,55 +4186,6 @@ The most complex item in the MVP — a merchant-facing visual editor that lets m
 | `performance_warn_threshold_kb` | int | 40 | Soft warning |
 | `performance_block_threshold_kb` | int | 60 | Hard block |
 | `default_preview_device` | enum | mobile | Initial preview device |
-
-##### Data Captured
-
-```typescript
-interface WidgetConfig {
-  id: uuid;
-  store_id: string;
-  widget_type: string;          // e.g., 'live_viewer_counter'
-  config_data: object;          // schema per widget
-  status: 'draft' | 'active' | 'disabled' | 'scheduled';
-  scheduled_publish_at?: timestamp;
-  version: number;
-  created_at: timestamp;
-  updated_at: timestamp;
-  published_at?: timestamp;
-  variants?: WidgetVariant[];
-}
-
-interface WidgetConfigVersion {
-  id: uuid;
-  widget_config_id: uuid;
-  version: number;
-  config_snapshot: object;
-  published_at: timestamp;
-  published_by: string;         // merchant user
-}
-
-interface WidgetVariant {
-  id: uuid;
-  widget_config_id: uuid;
-  variant_name: string;
-  config_overrides: object;
-  traffic_share_percent: number;
-  metrics: {
-    impressions: number;
-    conversions: number;
-    conversion_rate: float;
-  };
-}
-
-interface CustomizerActivity {
-  store_id: string;
-  user_id: string;
-  widget_type: string;
-  action: 'opened' | 'saved_draft' | 'published' | 'rolled_back' | 'preview_viewed' | 'variant_added';
-  config_changes: object;       // diff
-  timestamp: timestamp;
-}
-```
 
 ##### Edge Cases
 
